@@ -2,7 +2,7 @@ use crate::model::{IconEntry, Source, UpdateItem};
 use crate::util::run_powershell;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 /// PowerShell 脚本 — 扫描注册表 Uninstall 表，提取 DisplayIcon，
 /// 转 48×48 PNG，再 base64 输出 JSON 数组。
@@ -223,15 +223,6 @@ foreach ($dir in $dirs) {
 
 ConvertTo-Json -InputObject $out -Depth 3 -Compress
 "#;
-
-/// 返回当前时间戳（秒）
-#[allow(dead_code)]
-fn now_secs() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
-}
 
 /// 缓存文件路径：`%LOCALAPPDATA%\qm-updater\icon-cache.json`
 fn cache_path() -> Option<PathBuf> {
@@ -463,72 +454,6 @@ fn name_matches(a: &str, b: &str) -> bool {
     stripped_a == stripped_b && stripped_a.len() >= 4
 }
 
-/// 给一组 items 填充 icon 字段。
-///
-/// 多级降级策略：
-///  1. winget manifest 官方图标（仅 winget 类型）
-///  2. 注册表 DisplayIcon（离线）
-///  3. 开始菜单快捷方式（离线）
-///  4. 品牌默认图标（最终兜底）
-#[allow(dead_code)]
-pub fn fill_icons(items: &mut [UpdateItem]) {
-    // 第一级：winget manifest
-    let winget_manifest = if items.iter().any(|i| matches!(i.source, Source::Winget)) {
-        build_via_winget_manifest()
-    } else {
-        HashMap::new()
-    };
-
-    // 第二级：注册表
-    let registry = load_or_build_cache();
-
-    // 第三级：快捷方式
-    let shortcuts = if registry.is_empty() {
-        build_via_shortcuts()
-    } else {
-        HashMap::new()
-    };
-
-    for item in items.iter_mut() {
-        let mut matched = false;
-
-        // 第一级：winget manifest（item.id 带 winget: 前缀，需归一化后查询）
-        if matches!(item.source, Source::Winget) {
-            if let Some(icon) = winget_manifest.get(&winget_manifest_key(&item.id)) {
-                item.icon = Some(icon.clone());
-                matched = true;
-            }
-        }
-
-        // 第二级：注册表
-        if !matched && !registry.is_empty() {
-            for (name, icon) in &registry {
-                if name_matches(&item.name, name) {
-                    item.icon = Some(format!("data:image/png;base64,{}", icon));
-                    matched = true;
-                    break;
-                }
-            }
-        }
-
-        // 第三级：快捷方式
-        if !matched && !shortcuts.is_empty() {
-            for (name, icon) in &shortcuts {
-                if name_matches(&item.name, name) {
-                    item.icon = Some(format!("data:image/png;base64,{}", icon));
-                    matched = true;
-                    break;
-                }
-            }
-        }
-
-        // 第四级：品牌默认图标
-        if !matched {
-            item.icon = Some(default_icon_for_source(item.source).to_string());
-        }
-    }
-}
-
 /// 异步命令版本，调用方传入 items，返回 id → data_url 映射。
 /// 同时返回耗时（毫秒），方便前端调试。
 ///
@@ -621,26 +546,4 @@ pub fn rebuild_cache() -> HashMap<String, String> {
         save_cache(&map);
     }
     map
-}
-
-/// 当前缓存大小（用于设置面板显示）
-#[allow(dead_code)]
-pub fn cache_size() -> Option<usize> {
-    let path = cache_path()?;
-    let meta = std::fs::metadata(&path).ok()?;
-    Some(meta.len() as usize)
-}
-
-/// 用于调试：上次刷新缓存的时间
-#[allow(dead_code)]
-pub fn cache_age_secs() -> Option<u64> {
-    let path = cache_path()?;
-    let meta = std::fs::metadata(&path).ok()?;
-    let mtime = meta.modified().ok()?;
-    Some(now_secs().saturating_sub(
-        SystemTime::now()
-            .duration_since(mtime)
-            .ok()?
-            .as_secs(),
-    ))
 }

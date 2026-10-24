@@ -31,7 +31,7 @@ impl UpdateSource for OpenclawSource {
         // 一旦不一致（多半是历史上有人改过 prefix，或多份安装并存），
         // 就会出现"更新装成功了，但永远显示可更新"的死循环 —— 用户点更新、
         // npm 报成功、版本号纹丝不动，app 还查不出原因。
-        if let Some(warn) = check_install_location_mismatch(log) {
+        if let Some(warn) = check_install_location_mismatch() {
             log("warn", warn);
         }
 
@@ -270,7 +270,7 @@ fn extract_version(raw: &str) -> String {
 /// 只做提示，不阻断检查：prefix 不一致本身不是错误状态
 /// （比如用户有意用非默认 prefix），但它几乎一定是"更新不生效"的根因，
 /// 必须让用户看见。
-fn check_install_location_mismatch(log: LogFn) -> Option<String> {
+fn check_install_location_mismatch() -> Option<String> {
     // 1) npm 的全局 prefix（决定新包装到哪）
     let prefix = run_capture_with_timeout("npm", &["prefix", "-g"], 15).ok()?;
     let prefix = prefix
@@ -301,7 +301,6 @@ fn check_install_location_mismatch(log: LogFn) -> Option<String> {
     }
 
     // 不一致：报出双方具体位置，便于用户自行处理
-    let _ = log;
     Some(tr!(
         "openclaw.installMismatch",
         first,

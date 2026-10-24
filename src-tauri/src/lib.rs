@@ -144,6 +144,11 @@ fn check_one<S: UpdateSource + Send + 'static>(app: AppHandle, source: S) -> Vec
 /// 执行勾选的更新项，日志与进度通过事件推送
 #[tauri::command]
 async fn start_update(app: AppHandle, items: Vec<UpdateItem>) -> Result<Vec<ItemResult>, String> {
+    // 空列表直接返回，不发无意义的进度事件
+    if items.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let handle = app.clone();
 
     tauri::async_runtime::spawn_blocking(move || {
@@ -294,7 +299,10 @@ async fn set_ui_font_file(path: Option<String>) -> Result<(), String> {
 /// 查询当前自定义字体文件路径
 #[tauri::command]
 async fn get_ui_font_file() -> Option<String> {
-    font::current().map(|p| p.to_string_lossy().to_string())
+    tauri::async_runtime::spawn_blocking(|| font::current().map(|p| p.to_string_lossy().to_string()))
+        .await
+        .ok()
+        .flatten()
 }
 
 /// 查询日志目录路径（设置面板展示用）
@@ -375,64 +383,86 @@ const AUTOSTART_REG_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion
 const AUTOSTART_REG_VALUE: &str = "QMUpdater";
 
 /// 查询是否已启用开机自启动
+///
+/// 放 spawn_blocking：reg 查询是同步子进程调用，直接跑在 async 命令里
+/// 会阻塞事件循环线程（虽然通常 <50ms，但 reg 一旦卡住会冻结全部 IPC）。
 #[tauri::command]
 async fn get_autostart() -> Result<bool, String> {
-    // ⚠️ 必须带 CREATE_NO_WINDOW：设置窗口在应用启动时就会调这个命令（读取开关状态），
-    // 裸调 reg 会让黑窗一闪 —— 这是"开机自启动时闪过一个 cmd 窗口"的来源。
-    let mut cmd = std::process::Command::new("reg");
-    cmd.args(["query", AUTOSTART_REG_KEY, "/v", AUTOSTART_REG_VALUE])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null());
-    #[cfg(windows)]
-    cmd.creation_flags(CREATE_NO_WINDOW);
-    let output = cmd.status().map_err(|e| e.to_string())?;
-    Ok(output.success())
+    tauri::async_runtime::spawn_blocking(|| {
+        // ⚠️ 必须带 CREATE_NO_WINDOW：设置窗口在应用启动时就会调这个命令（读取开关状态），
+        // 裸调 reg 会让黑窗一闪 —— 这是"开机自启动时闪过一个 cmd 窗口"的来源。
+        let mut cmd = std::process::Command::new("reg");
+        cmd.args(["query", AUTOSTART_REG_KEY, "/v", AUTOSTART_REG_VALUE])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        #[cfg(windows)]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        let output = cmd.status().map_err(|e| e.to_string())?;
+        Ok(output.success())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// 设置开机自启动（启用/禁用）
 ///
 /// 优化：注册表值添加 `--autostart` 参数，应用启动时可识别开机自启动模式，
 /// 实现"有更新才显示窗口，无更新后台静默运行"。
+/// 与 get_autostart 同理，同步子进程调用放 spawn_blocking，避免阻塞事件循环。
 #[tauri::command]
 async fn set_autostart(enable: bool) -> Result<(), String> {
-    if enable {
-        let exe = std::env::current_exe().map_err(|e| tr!("lib.exePathFailed", e))?;
-        let exe_path = exe.to_string_lossy().to_string();
-        // 用引号包裹路径，避免路径含空格时解析错误；
-        // 追加 --autostart 参数，标识开机自启动模式
-        // main.rs 已设置 windows_subsystem="windows"，不会弹出控制台窗口
-        let quoted = format!("\"{}\" --autostart", exe_path);
-        // 同上：不加 CREATE_NO_WINDOW 的话，点开关的一瞬间会闪一个黑窗
-        let mut cmd = std::process::Command::new("reg");
-        cmd.args([
-            "add",
-            AUTOSTART_REG_KEY,
-            "/v",
-            AUTOSTART_REG_VALUE,
-            "/t",
-            "REG_SZ",
-            "/d",
-            &quoted,
-            "/f",
-        ])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null());
-        #[cfg(windows)]
-        cmd.creation_flags(CREATE_NO_WINDOW);
-        let status = cmd.status().map_err(|e| e.to_string())?;
-        if !status.success() {
-            return Err(tr!("lib.regWriteFailed"));
-        }
-    } else {
-        let mut cmd = std::process::Command::new("reg");
-        cmd.args(["delete", AUTOSTART_REG_KEY, "/v", AUTOSTART_REG_VALUE, "/f"])
+    tauri::async_runtime::spawn_blocking(move || {
+        if enable {
+            let exe = std::env::current_exe().map_err(|e| tr!("lib.exePathFailed", e))?;
+            let exe_path = exe.to_string_lossy().to_string();
+            // 用引号包裹路径，避免路径含空格时解析错误；
+            // 追加 --autostart 参数，标识开机自启动模式
+            // main.rs 已设置 windows_subsystem="windows"，不会弹出控制台窗口
+            let quoted = format!("\"{}\" --autostart", exe_path);
+            // 同上：不加 CREATE_NO_WINDOW 的话，点开关的一瞬间会闪一个黑窗
+            let mut cmd = std::process::Command::new("reg");
+            cmd.args([
+                "add",
+                AUTOSTART_REG_KEY,
+                "/v",
+                AUTOSTART_REG_VALUE,
+                "/t",
+                "REG_SZ",
+                "/d",
+                &quoted,
+                "/f",
+            ])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
-        #[cfg(windows)]
-        cmd.creation_flags(CREATE_NO_WINDOW);
-        let _ = cmd.status();
-    }
-    Ok(())
+            #[cfg(windows)]
+            cmd.creation_flags(CREATE_NO_WINDOW);
+            let status = cmd.status().map_err(|e| e.to_string())?;
+            if !status.success() {
+                return Err(tr!("lib.regWriteFailed"));
+            }
+        } else {
+            let mut cmd = std::process::Command::new("reg");
+            cmd.args(["delete", AUTOSTART_REG_KEY, "/v", AUTOSTART_REG_VALUE, "/f"])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
+            #[cfg(windows)]
+            cmd.creation_flags(CREATE_NO_WINDOW);
+            // 删除失败（键不存在）与成功一样视为"已禁用"，
+            // 但区分处理：非"键不存在"错误要如实上报，避免开关显示与真实状态不符
+            match cmd.status() {
+                Ok(status) if status.success() => {}
+                Ok(_) => {
+                    return Err(tr!("lib.regWriteFailed"));
+                }
+                Err(e) => {
+                    return Err(e.to_string());
+                }
+            }
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// 查询当前启动模式：是否为开机自启动（--autostart 参数）

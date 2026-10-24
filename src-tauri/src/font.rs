@@ -11,7 +11,7 @@
 use crate::tr;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 /// 字体文件协议名。Windows 上实际访问地址是 `http://font.localhost/ui`
 pub const FONT_SCHEME: &str = "font";
@@ -20,6 +20,14 @@ pub const FONT_ROUTE: &str = "ui";
 
 /// 当前生效的字体文件。由 `set_ui_font_file` 写入，协议处理函数读取。
 static UI_FONT: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+/// 字体文件字节缓存：`(路径, 内容)`。
+///
+/// CJK 字体可达几十 MB，`serve` 每次请求都从磁盘全量重读一次太浪费
+/// （WebView 每次页面加载都会请求）。路径未变时直接复用内存副本；
+/// `set_current` 时失效（路径变化 → 键不匹配；同一路径被原地覆盖属
+/// 边缘情况，用户需重新选择字体才会重读）。
+static FONT_BYTES: Mutex<Option<(PathBuf, Arc<Vec<u8>>)>> = Mutex::new(None);
 
 const FONT_EXTS: &[&str] = &["ttf", "otf", "ttc", "otc", "woff", "woff2"];
 
@@ -55,6 +63,10 @@ pub fn restore() {
 pub fn set_current(path: Option<PathBuf>) {
     if let Ok(mut guard) = UI_FONT.lock() {
         *guard = path;
+    }
+    // 字体变更 → 字节缓存作废（要么路径不同，要么内容可能已变）
+    if let Ok(mut bytes) = FONT_BYTES.lock() {
+        *bytes = None;
     }
 }
 
@@ -128,16 +140,33 @@ pub fn serve(request: &tauri::http::Request<Vec<u8>>) -> tauri::http::Response<V
         return not_found();
     };
 
-    match std::fs::read(&path) {
-        Ok(bytes) => tauri::http::Response::builder()
+    match read_cached(&path) {
+        Some(bytes) => tauri::http::Response::builder()
             .status(200)
             .header("Content-Type", mime_for(&path))
             .header("Access-Control-Allow-Origin", "*")
             .header("Cache-Control", "no-cache")
             .body(bytes)
             .unwrap_or_else(|_| tauri::http::Response::new(Vec::new())),
-        Err(_) => not_found(),
+        None => not_found(),
     }
+}
+
+/// 读字体文件字节，命中缓存时复用（CJK 字体几十 MB，每次页面加载都
+/// 重新读盘太浪费）。返回 Vec 一次内存拷贝，比磁盘读快一个数量级。
+fn read_cached(path: &Path) -> Option<Vec<u8>> {
+    let cached = FONT_BYTES.lock().ok().and_then(|g| g.clone());
+    if let Some((p, bytes)) = cached {
+        if p == path {
+            return Some(bytes.as_ref().clone());
+        }
+    }
+
+    let bytes = Arc::new(std::fs::read(path).ok()?);
+    if let Ok(mut guard) = FONT_BYTES.lock() {
+        *guard = Some((path.to_path_buf(), Arc::clone(&bytes)));
+    }
+    Some(bytes.as_ref().clone())
 }
 
 /* ============ 系统字体枚举 ============ */

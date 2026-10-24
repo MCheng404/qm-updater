@@ -9,6 +9,7 @@ use crate::model::LogLine;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 /// 日志目录：`%LOCALAPPDATA%\qm-updater\logs`
 pub fn log_dir() -> Option<PathBuf> {
@@ -20,6 +21,14 @@ pub fn log_dir() -> Option<PathBuf> {
 pub fn today_file() -> Option<PathBuf> {
     Some(log_dir()?.join(format!("{}.log", today())))
 }
+
+/// 当日文件句柄缓存：`(日期, 文件)`。
+///
+/// check_updates 同时跑四个源线程、更新时又逐行打 cmd 日志 —— 高频 append。
+/// 原来每次 append 都 open/close 一次文件，Windows 上 OpenOptions 的成本
+/// （目录查找 + 句柄分配）在高频日志下会被放大。这里缓存当日句柄，
+/// 跨天（today() 变化）或打开失败时自动重开。
+static FILE_CACHE: Mutex<Option<(String, fs::File)>> = Mutex::new(None);
 
 /// 追加一行日志（失败静默）
 pub fn append(line: &LogLine) {
@@ -44,55 +53,32 @@ pub fn append(line: &LogLine) {
         line.text
     );
 
-    let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&path) else {
-        return;
+    let date = today();
+    // Mutex 中毒（别的线程 panic 时）就丢弃旧句柄重建，日志不能因此停写
+    let mut cache = match FILE_CACHE.lock() {
+        Ok(g) => g,
+        Err(p) => p.into_inner(),
     };
-    let _ = f.write_all(buf.as_bytes());
+
+    let needs_reopen = match cache.as_ref() {
+        Some((d, _)) => d != &date,
+        None => true,
+    };
+    if needs_reopen {
+        let f = match OpenOptions::new().create(true).append(true).open(&path) {
+            Ok(f) => f,
+            Err(_) => return,
+        };
+        *cache = Some((date, f));
+    }
+
+    if let Some((_, f)) = cache.as_mut() {
+        let _ = f.write_all(buf.as_bytes());
+    }
 }
 
-/// 本地日期 `YYYY-MM-DD`（UTC+8，避免为此引入 chrono）
+/// 本地日期 `YYYY-MM-DD`（跟随系统时区，与 util::now_time 同源）
 fn today() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    let days = ((secs + 8 * 3600) / 86_400) as i64;
-    let (y, m, d) = civil_from_days(days);
-    format!("{:04}-{:02}-{:02}", y, m, d)
-}
-
-/// Howard Hinnant 的 `days -> (y, m, d)` 算法（days 自 1970-01-01 起）
-fn civil_from_days(z: i64) -> (i64, u32, u32) {
-    let z = z + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = (z - era * 146_097) as i64; // [0, 146096]
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
-    let mp = (5 * doy + 2) / 153; // [0, 11]
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32; // [1, 31]
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32; // [1, 12]
-    (if m <= 2 { y + 1 } else { y }, m, d)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::civil_from_days;
-
-    #[test]
-    fn epoch_is_1970_01_01() {
-        assert_eq!(civil_from_days(0), (1970, 1, 1));
-    }
-
-    #[test]
-    fn leap_day_2024() {
-        // 2024-02-29 = 1970-01-01 之后第 19782 天
-        assert_eq!(civil_from_days(19_782), (2024, 2, 29));
-    }
-
-    #[test]
-    fn year_end_2026() {
-        assert_eq!(civil_from_days(20_818), (2026, 12, 31));
-    }
+    let n = crate::util::local_now();
+    format!("{:04}-{:02}-{:02}", n.year, n.month, n.day)
 }

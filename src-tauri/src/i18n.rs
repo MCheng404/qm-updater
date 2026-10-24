@@ -9,6 +9,7 @@
 //! - key 与前端 i18n.ts 的命名空间保持一致（如 `group.npm` 两边同 key 同文案）；
 //! - 文案里的 `{}` 是占位符，按 `tr()` 传入参数的顺序依次替换。
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -303,8 +304,8 @@ static TABLE: &[(&str, &str, &str)] = &[
 /// 取当前语言的文案，并依次替换 `{}` 占位符。
 /// 漏配 key 时回退成 key 本身（一眼能看出漏了，不会静默显示中文）。
 pub fn tr(key: &str, args: &[String]) -> String {
-    let template = match TABLE.iter().find(|(k, _, _)| *k == key) {
-        Some((_, zh, en)) => {
+    let template = match table().get(key) {
+        Some((zh, en)) => {
             if lang() == Lang::En {
                 *en
             } else {
@@ -324,11 +325,29 @@ pub fn tr(key: &str, args: &[String]) -> String {
     out
 }
 
+/// 把静态文案表建成哈希表，避免每次 `tr` 线性扫描。
+/// 键与值都是 `'static`，建成一次永不失效。
+static TABLE_MAP: std::sync::OnceLock<HashMap<&'static str, (&'static str, &'static str)>> =
+    std::sync::OnceLock::new();
+
+fn table() -> &'static HashMap<&'static str, (&'static str, &'static str)> {
+    TABLE_MAP.get_or_init(|| {
+        TABLE
+            .iter()
+            .map(|(k, zh, en)| (*k, (*zh, *en)))
+            .collect()
+    })
+}
+
 /// 便捷宏：`tr!("pip.found", items.len())`
+///
+/// 用 `format!("{}", arg)` 而不是 `arg.to_string()`：对 `&String` 参数，
+/// `to_string()` 会触发一次深拷贝（clippy::cloned_ref_to_slice_refs），
+/// 而 Display 格式化是借用，行为相同、无多余分配。
 #[macro_export]
 macro_rules! tr {
     ($key:expr $(, $arg:expr)*) => {
-        $crate::i18n::tr($key, &[$($arg.to_string()),*])
+        $crate::i18n::tr($key, &[$(format!("{}", $arg)),*])
     };
 }
 

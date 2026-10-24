@@ -136,7 +136,7 @@ fn parse_table(out: &str, log: LogFn) -> Vec<UpdateItem> {
     }
 
     if body_start == usize::MAX {
-        if looks_like_usage_help(&out) {
+        if looks_like_usage_help(out) {
             log("err", tr!("winget.badArgs"));
         } else {
             log("ok", tr!("winget.allLatest"));
@@ -168,6 +168,7 @@ fn parse_table(out: &str, log: LogFn) -> Vec<UpdateItem> {
 /// 等于对用户撒谎。所以这里分成两道：
 ///  1) 多语言关键词，覆盖最常见的几种；
 ///  2) 与语言无关的结构特征 —— 帮助文本里一定有以 `-` 开头的选项行（如 `  -v,--version`）。
+///
 /// 第 2 条是真正的兜底：换任何语言都成立。
 fn looks_like_usage_help(out: &str) -> bool {
     const MARKERS: &[&str] = &[
