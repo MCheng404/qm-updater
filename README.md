@@ -24,7 +24,7 @@ A desktop tool for unified software updates across npm, winget, pip, and OpenCla
 
 ## Tech Stack
 
-- **Frontend**: TypeScript + Vite + native CSS (no framework dependencies)
+- **Frontend**: Vue 3 + TypeScript + Vite + Pinia + vue-i18n (native CSS, no UI component library)
 - **Backend**: Rust + Tauri 2
 - **Window effects**: Acrylic / Mica blur
 - **Packaging**: NSIS installer
@@ -61,16 +61,20 @@ npm run tauri:build -- --target aarch64-pc-windows-msvc
 ## Project Structure
 
 ```
-├── src/                    # Frontend source
-│   ├── main.ts            # Main window logic
-│   ├── settings.ts        # Settings window logic
-│   ├── notify.ts          # Notification window logic
-│   ├── about.ts           # About window logic
-│   ├── theme.ts           # Theme system
-│   ├── i18n.ts            # Multi-language system
-│   ├── app-settings.ts    # App settings
-│   ├── font-settings.ts   # Font settings
-│   ├── icons.ts           # Icons
+├── src/                    # Frontend source (Vue 3)
+│   ├── entries/           # Entry points for the four windows: main / settings / notify / about
+│   ├── views/             # Window views: MainView / SettingsView / NotifyView / AboutView
+│   ├── components/        # Shared components: TitleBar / UpdateItem / ToastCard
+│   ├── app/               # Shared layer
+│   │   ├── i18n.ts        # vue-i18n instance
+│   │   ├── locales/       # zh-CN / en-US message packs
+│   │   ├── theme.ts       # Theme system
+│   │   ├── font.ts        # Font settings
+│   │   ├── app-settings.ts# App settings
+│   │   ├── stores.ts      # Pinia stores (theme / app settings)
+│   │   ├── shared.ts      # Shared plugin and cross-window sync
+│   │   ├── icons.ts       # Inline vector icons
+│   │   └── types.ts       # Shared frontend/backend types
 │   └── styles.css         # Global styles
 ├── src-tauri/             # Rust backend
 │   ├── src/

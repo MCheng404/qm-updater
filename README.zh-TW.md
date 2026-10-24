@@ -24,7 +24,7 @@
 
 ## 技術棧
 
-- **前端**: TypeScript + Vite + 原生 CSS（無框架依賴）
+- **前端**: Vue 3 + TypeScript + Vite + Pinia + vue-i18n（原生 CSS，無 UI 元件庫）
 - **後端**: Rust + Tauri 2
 - **視窗效果**: Acrylic / Mica 毛玻璃
 - **封裝**: NSIS 安裝程式
@@ -61,16 +61,20 @@ npm run tauri:build -- --target aarch64-pc-windows-msvc
 ## 專案結構
 
 ```
-├── src/                    # 前端原始碼
-│   ├── main.ts            # 主視窗邏輯
-│   ├── settings.ts        # 設定視窗邏輯
-│   ├── notify.ts          # 通知視窗邏輯
-│   ├── about.ts           # 關於視窗邏輯
-│   ├── theme.ts           # 主題系統
-│   ├── i18n.ts            # 多語言系統
-│   ├── app-settings.ts    # 應用程式設定
-│   ├── font-settings.ts   # 字型設定
-│   ├── icons.ts           # 圖示
+├── src/                    # 前端原始碼（Vue 3）
+│   ├── entries/           # 四個視窗的進入點：main / settings / notify / about
+│   ├── views/             # 視窗檢視：MainView / SettingsView / NotifyView / AboutView
+│   ├── components/        # 共用元件：TitleBar / UpdateItem / ToastCard
+│   ├── app/               # 共用層
+│   │   ├── i18n.ts        # vue-i18n 實例
+│   │   ├── locales/       # 中英文語言包
+│   │   ├── theme.ts       # 主題系統
+│   │   ├── font.ts        # 字型設定
+│   │   ├── app-settings.ts# 應用程式設定
+│   │   ├── stores.ts      # Pinia stores（主題 / 應用程式設定）
+│   │   ├── shared.ts      # 共用外掛與跨視窗同步
+│   │   ├── icons.ts       # 內嵌向量圖示
+│   │   └── types.ts       # 前後端介面型別
 │   └── styles.css         # 全域樣式
 ├── src-tauri/             # Rust 後端
 │   ├── src/

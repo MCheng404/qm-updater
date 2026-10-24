@@ -21,9 +21,11 @@ edit('package.json', /("version"\s*:\s*")[^"]+(")/g, (_, g1, g2) => g1 + version
 edit('src-tauri/tauri.conf.json', /("version"\s*:\s*")[^"]+(")/g, (_, g1, g2) => g1 + version + g2);
 // Cargo.toml: version = "X"（[package] 段）
 edit('src-tauri/Cargo.toml', /^version = "[^"]+"/m, `version = "${version}"`);
-// about.html（仓库根目录）: <span ... id="appVersion">X</span>
-edit('about.html', /(<span class="mono" id="appVersion">)[^<]+(<\/span>)/, (_, g1, g2) => g1 + version + g2);
-// about.ts: 仅更新 catch 分支的兜底字面量（主版本来自 getVersion()）
-edit('src/about.ts', /el\('appVersion'\)\.textContent = '[^']+'/, `el('appVersion').textContent = '${version}'`);
+// AboutView.vue: 仅更新 ref 的兜底字面量（主版本来自 getVersion()）
+edit(
+  'src/views/AboutView.vue',
+  /const version = ref\('[^']+'\)/,
+  `const version = ref('${version}')`,
+);
 
 console.log('Done.');

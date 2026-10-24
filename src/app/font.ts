@@ -4,6 +4,9 @@
  * - 设置存 localStorage（同源，各窗口共享）
  * - 字体**文件**本身由 Rust 侧持久化，并通过自定义协议
  *   `http://font.localhost/ui` 提供给 WebView，不走 IPC 传字节
+ *
+ * 与旧版的区别：设置窗口里的响应式状态在 SettingsView 本地持有，
+ * 这里保持纯模块函数 + Tauri 事件广播（font-changed）。
  */
 
 import { emit, listen, type UnlistenFn } from '@tauri-apps/api/event';

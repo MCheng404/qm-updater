@@ -29,15 +29,19 @@ UI_TEXT = (
 )
 
 
-# 界面文案的真实来源：语言包、后端消息表、四个窗口的 HTML。
+# 界面文案的真实来源：语言包、后端消息表、四个窗口视图。
 # 按这些文件里实际出现的汉字子集化，比"整个字库"精准得多 ——
 # 界面文案是确定的，没必要为几乎永远不会显示的字形买单。
 UI_SOURCES = (
-    'index.html',
-    'settings.html',
-    'notify.html',
-    'about.html',
-    'src/i18n.ts',
+    'src/app/locales/zh-CN.ts',
+    'src/app/locales/en-US.ts',
+    'src/views/MainView.vue',
+    'src/views/SettingsView.vue',
+    'src/views/NotifyView.vue',
+    'src/views/AboutView.vue',
+    'src/components/TitleBar.vue',
+    'src/components/UpdateItem.vue',
+    'src/components/ToastCard.vue',
     'src-tauri/src/i18n.rs',
 )
 

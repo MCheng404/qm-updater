@@ -33,7 +33,7 @@ function collectFiles() {
       const p = join(dir, name);
       if (statSync(p).isDirectory()) {
         walk(p);
-      } else if (/\.(ts|html|css)$/.test(name)) {
+      } else if (/\.(ts|vue|html|css)$/.test(name)) {
         out.push(p);
       }
     }
@@ -47,7 +47,8 @@ function collectFiles() {
 
 const DEFINITION = /(^|[\s{;])(--[\w-]+)\s*:/g;
 const USE = /var\(\s*(--[\w-]+)/g;
-const WRITE = /setProperty\(\s*['"`](--[\w-]+)/g;
+// setProperty('--x', …) 或 Vue 的 :style="{ '--x': … }" 对象键
+const WRITE = /setProperty\(\s*['"`](--[\w-]+)|['"](--[\w-]+)['"]\s*:/g;
 
 function scan() {
   const defined = new Map(); // name -> 定义所在文件
@@ -69,7 +70,8 @@ function scan() {
       if (!used.has(m[1])) used.set(m[1], rel);
     }
     for (const m of text.matchAll(WRITE)) {
-      if (!written.has(m[1])) written.set(m[1], rel);
+      const name = m[1] ?? m[2];
+      if (name && !written.has(name)) written.set(name, rel);
     }
   }
   return { defined, used, written };

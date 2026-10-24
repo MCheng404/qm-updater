@@ -1305,6 +1305,11 @@ html[data-text-render='none'] .toast-time {
 .item-icon-fallback {
   color: var(--text-dim);
 }
+/* 回退图标尺寸：与旧版 JS 里给 svg 写的 width/height=17 保持一致 */
+.item-icon-fallback .ico {
+  width: 17px;
+  height: 17px;
+}
 
 /* ============ 通知 Toast 窗口 ============ */
 .toast-root {

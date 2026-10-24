@@ -24,7 +24,7 @@
 
 ## 技术栈
 
-- **前端**: TypeScript + Vite + 原生 CSS（无框架依赖）
+- **前端**: Vue 3 + TypeScript + Vite + Pinia + vue-i18n（原生 CSS，无 UI 组件库）
 - **后端**: Rust + Tauri 2
 - **窗口效果**: Acrylic / Mica 毛玻璃
 - **打包**: NSIS 安装包
@@ -61,16 +61,20 @@ npm run tauri:build -- --target aarch64-pc-windows-msvc
 ## 项目结构
 
 ```
-├── src/                    # 前端源码
-│   ├── main.ts            # 主窗口逻辑
-│   ├── settings.ts        # 设置窗口逻辑
-│   ├── notify.ts          # 通知窗口逻辑
-│   ├── about.ts           # 关于窗口逻辑
-│   ├── theme.ts           # 主题系统
-│   ├── i18n.ts            # 多语言系统
-│   ├── app-settings.ts    # 应用设置
-│   ├── font-settings.ts   # 字体设置
-│   ├── icons.ts           # 图标
+├── src/                    # 前端源码（Vue 3）
+│   ├── entries/           # 四个窗口的入口：main / settings / notify / about
+│   ├── views/             # 窗口视图：MainView / SettingsView / NotifyView / AboutView
+│   ├── components/        # 复用组件：TitleBar / UpdateItem / ToastCard
+│   ├── app/               # 共享层
+│   │   ├── i18n.ts        # vue-i18n 实例
+│   │   ├── locales/       # 中英文语言包
+│   │   ├── theme.ts       # 主题系统
+│   │   ├── font.ts        # 字体设置
+│   │   ├── app-settings.ts# 应用设置
+│   │   ├── stores.ts      # Pinia stores（主题 / 应用设置）
+│   │   ├── shared.ts      # 共享插件与跨窗口同步
+│   │   ├── icons.ts       # 内嵌矢量图标
+│   │   └── types.ts       # 前后端接口类型
 │   └── styles.css         # 全局样式
 ├── src-tauri/             # Rust 后端
 │   ├── src/

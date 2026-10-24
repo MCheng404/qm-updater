@@ -1,6 +1,8 @@
 /**
  * 应用设置：启动自动检查 + 忽略列表（忽略此版本 / 永久忽略）
  * 存储在 localStorage，主窗口与设置窗口通过 Tauri 事件同步。
+ *
+ * 纯函数部分与旧版一致；Pinia store 在 stores.ts。
  */
 
 export const SETTINGS_KEY = 'qm-updater.settings';

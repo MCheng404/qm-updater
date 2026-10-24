@@ -1,6 +1,7 @@
 /**
  * 内嵌矢量图标（Lucide 风格，stroke-based，MIT License）
  * 以常量字符串形式内联，避免引入运行时依赖与网络请求。
+ * 在 Vue 模板中通过 v-html 使用，尺寸由 CSS 的 .ico 规则统一控制。
  */
 
 const wrap = (body: string, size = 14): string =>

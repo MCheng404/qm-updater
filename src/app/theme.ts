@@ -1,6 +1,9 @@
 /**
- * 主题状态与 CSS 变量应用，主窗口与设置窗口共用。
+ * 主题状态与 CSS 变量应用，所有窗口共用。
  * 支持浅色 / 深色 / 跟随系统三种模式。
+ *
+ * 与旧版的区别：状态本身搬到 Pinia store（stores.ts），
+ * 这里只保留纯函数与 CSS 变量施加逻辑。
  */
 
 import { Effect, getCurrentWindow } from '@tauri-apps/api/window';
@@ -257,14 +260,4 @@ export function watchSystemTheme(onChange: () => void): () => void {
   const handler = () => onChange();
   mql.addEventListener('change', handler);
   return () => mql.removeEventListener('change', handler);
-}
-
-/**
- * 窗口效果已在 tauri.conf.json 中静态声明（windowEffects），
- * 运行时再调用 setEffects 会在部分显卡/驱动上触发合成层重建，
- * 导致渲染进程卡死。这里改为空实现，仅保留接口兼容。
- */
-export async function applyWindowEffects(): Promise<void> {
-  // 窗口毛玻璃效果由 tauri.conf.json 的 windowEffects 静态配置提供，
-  // 不需要（也不应该）在运行时重复调用 setEffects。
 }
