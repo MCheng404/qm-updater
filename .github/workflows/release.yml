@@ -290,11 +290,12 @@ jobs:
           echo "keystore decoded to $RUNNER_TEMP/qm-android.keystore"
 
       # 一次构建同时产出 APK 与 AAB（release）。前端已单独构建，beforeBuildCommand 置 null 复用。
+      # 注意：--apk / --aab 是产物类型 flag；--target 只接受 ABI（aarch64 等，默认构建全部 ABI）。
       # 版本号：tauri 在构建时从同步后的主版本动态生成 tauri.properties（versionName/versionCode），
       # 与桌面端同源，天然保持一致。
       - name: Build Android (APK + AAB)
         run: |
-          npm run tauri -- android build --target aab --apk --config '{"build":{"beforeBuildCommand":null}}'
+          npm run tauri -- android build --apk --aab --config '{"build":{"beforeBuildCommand":null}}'
 
       - name: Collect Android artifacts
         run: |
