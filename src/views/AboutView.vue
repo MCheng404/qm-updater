@@ -3,13 +3,19 @@
  * 关于窗口（label=about）。
  * 由旧版 src/about.ts + about.html 移植为 Vue 响应式实现。
  */
-import { computed, onMounted, ref } from 'vue';
+import { computed, onActivated, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
 
 const { t } = useI18n();
+
+/** 每次进入关于视图自增，重建 hero SVG → 图标"绘制出现"动画重新播放 */
+const drawKey = ref(0);
+onActivated(() => {
+  drawKey.value++;
+});
 
 const GITHUB_PROFILE = 'https://github.com/MCheng404';
 const GITHUB_REPO = 'https://github.com/MCheng404/qm-updater';
@@ -160,16 +166,28 @@ onMounted(() => {
   <div class="about-scroll">
       <div class="about-hero">
         <div class="about-logo">
-          <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
-            <circle cx="32" cy="32" r="28" stroke="var(--accent)" stroke-width="2.5" opacity="0.6" />
+          <!-- :key 保证每次进入都重建 → 绘制动画重播；reduce-motion 下直接呈现完成态 -->
+          <svg :key="drawKey" class="about-logo-svg" viewBox="0 0 64 64" width="56" height="56" fill="none">
+            <circle
+              class="logo-ring"
+              cx="32"
+              cy="32"
+              r="28"
+              stroke="var(--accent)"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              opacity="0.6"
+            />
             <path
+              class="logo-check"
               d="M20 34l8 8 16-18"
+              pathLength="1"
               stroke="var(--accent)"
               stroke-width="3.5"
               stroke-linecap="round"
               stroke-linejoin="round"
             />
-            <circle cx="32" cy="32" r="4" fill="var(--accent)" opacity="0.8" />
+            <circle class="logo-dot" cx="32" cy="32" r="4" fill="var(--accent)" opacity="0.8" />
           </svg>
         </div>
         <h1 class="about-app-name">{{ $t('about.appName') }}</h1>

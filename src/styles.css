@@ -397,6 +397,66 @@ body.reduce-motion *::after {
   }
 }
 
+/* ---- 关于 hero 图标绘制动画 ---- */
+@keyframes ringDraw {
+  from {
+    stroke-dashoffset: 176;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes checkDraw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes dotPop {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+/* 绘制完成后的柔和呼吸（外圈透明度 / 中心点微缩放） */
+@keyframes ringBreathe {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+@keyframes dotBreathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.95;
+  }
+}
+/* hero 顶部光晕缓慢漂移（柔和、无直角） */
+@keyframes heroGlow {
+  from {
+    transform: translateY(-6%) scale(0.96);
+    opacity: 0.55;
+  }
+  to {
+    transform: translateY(4%) scale(1.04);
+    opacity: 0.85;
+  }
+}
+
 .pulse-pop {
   animation: popPulse 0.34s var(--ease);
 }
@@ -1824,6 +1884,8 @@ input[type='range']:active::-webkit-slider-thumb {
   padding: 16px 18px 18px;
 }
 .about-hero {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1836,17 +1898,61 @@ input[type='range']:active::-webkit-slider-thumb {
   box-shadow: var(--card-shadow);
   animation: aboutHeroIn 0.5s var(--ease) both;
 }
+
+/* 顶部柔和光晕：径向渐变 + 缓慢漂移，全部是圆角过渡，无直角 */
+.about-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    62% 55% at 50% -6%,
+    var(--accent-soft),
+    transparent 72%
+  );
+  opacity: 0.75;
+  transform-origin: center;
+  animation: heroGlow 9s ease-in-out infinite alternate;
+}
+.about-hero > * {
+  position: relative;
+  z-index: 1;
+}
 .about-logo {
   width: 72px;
   height: 72px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-lg);
-  background: var(--accent-soft);
+  /* 更圆的容器 + 柔和渐变底，去掉直角感 */
+  border-radius: 22px;
+  background: linear-gradient(148deg, var(--accent-soft), var(--surface-2) 82%);
   border: 1px solid var(--accent-line);
   margin-bottom: 14px;
-  box-shadow: 0 0 0 0 var(--accent-soft);
+  box-shadow: 0 0 0 0 var(--accent-soft), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   animation: logoPulse 3s ease-in-out infinite;
+}
+.about-logo-svg {
+  display: block;
+}
+
+/* ---- hero 图标：逐笔"绘制出现" + 柔和呼吸 ---- */
+.about-logo-svg .logo-ring {
+  stroke-dasharray: 176;
+  stroke-dashoffset: 0;
+  animation: ringDraw 0.45s var(--ease) 0.08s both,
+    ringBreathe 4.6s ease-in-out 1s infinite;
+}
+.about-logo-svg .logo-check {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: checkDraw 0.38s var(--ease) 0.52s both;
+}
+.about-logo-svg .logo-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dotPop 0.32s var(--ease-spring) 0.9s both,
+    dotBreathe 3.2s ease-in-out 1.7s infinite;
 }
 .about-app-name {
   font-size: var(--t-9);
