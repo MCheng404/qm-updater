@@ -300,10 +300,12 @@ jobs:
       - name: Collect Android artifacts
         run: |
           v="${{ steps.rel.outputs.version }}"
-          APK=$(ls src-tauri/gen/android/app/build/outputs/apk/release/*.apk | head -1)
+          # 未开 --split-per-abi：产物在 universal 目录（tauri 2.12 实际路径）
+          APK=$(ls src-tauri/gen/android/app/build/outputs/apk/universal/release/*.apk | head -1)
+          AAB=$(ls src-tauri/gen/android/app/build/outputs/bundle/universalRelease/*.aab | head -1)
           mkdir -p dist-android
           cp "$APK" "dist-android/qm-updater-$v-android.apk"
-          cp src-tauri/gen/android/app/build/outputs/bundle/release/app-release.aab "dist-android/qm-updater-$v.aab"
+          cp "$AAB" "dist-android/qm-updater-$v.aab"
           cd dist-android
           sha256sum qm-updater-*.aab qm-updater-*-android.apk > SHA256SUMS-android.txt
           ls -la
