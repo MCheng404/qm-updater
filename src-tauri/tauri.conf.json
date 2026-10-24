@@ -14,30 +14,17 @@
       {
         "label": "main",
         "title": "QM Updater",
-        "width": 1120,
-        "height": 760,
-        "minWidth": 960,
+        "width": 1180,
+        "height": 780,
+        "minWidth": 980,
         "minHeight": 640,
         "center": true,
         "resizable": true,
         "decorations": false,
         "shadow": true,
-        "transparent": true,
-        "visible": false      },
-      {
-        "label": "settings",
-        "title": "设置",
-        "url": "settings.html",
-        "width": 580,
-        "height": 680,
-        "minWidth": 480,
-        "minHeight": 520,
-        "center": true,
-        "resizable": true,
-        "decorations": false,
-        "shadow": true,
-        "visible": false,
-        "transparent": true      },
+        "transparent": false,
+        "visible": false
+      },
       {
         "label": "notify",
         "title": "通知",
@@ -51,21 +38,7 @@
         "skipTaskbar": true,
         "visible": false,
         "transparent": true
-      },
-      {
-        "label": "about",
-        "title": "关于",
-        "url": "about.html",
-        "width": 480,
-        "height": 620,
-        "minWidth": 420,
-        "minHeight": 520,
-        "center": true,
-        "resizable": true,
-        "decorations": false,
-        "shadow": true,
-        "visible": false,
-        "transparent": true      }
+      }
     ],
     "security": {
       "csp": null

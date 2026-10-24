@@ -196,25 +196,29 @@ async fn start_update(app: AppHandle, items: Vec<UpdateItem>) -> Result<Vec<Item
     .map_err(|e| e.to_string())
 }
 
-/// 打开设置子窗口。
-/// 窗口在配置中已预创建（visible: false），这里只负责显示。
+/// 打开"设置"页。
+///
+/// 单窗口 + 左侧导航：设置不再是独立子窗口，而是主窗口内的一个视图。
+/// 这里只负责把主窗口叫到前台，并向它发导航事件。
 #[tauri::command]
 async fn open_settings(app: AppHandle) {
-    if let Some(window) = app.get_webview_window("settings") {
+    if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
+    let _ = app.emit("navigate", "settings");
 }
 
-/// 打开关于子窗口。
+/// 打开"关于"页（同上，主窗口内切换视图）。
 #[tauri::command]
 async fn open_about(app: AppHandle) {
-    if let Some(window) = app.get_webview_window("about") {
+    if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
+    let _ = app.emit("navigate", "about");
 }
 
 /// 给一组 items 填充图标（仅 winget 能命中）。
@@ -532,14 +536,8 @@ pub fn run(autostart: bool) {
         // Windows 上地址是 http://font.localhost/ui
         .register_uri_scheme_protocol(font::FONT_SCHEME, |_ctx, req| font::serve(&req))
         .setup(move |app| {
-            // 设置/通知/关于窗口关闭时改为隐藏而非销毁，下次打开直接 show
-            if let Some(window) = app.get_webview_window("settings") {
-                hide_on_close(&window);
-            }
+            // 通知窗口关闭时改为隐藏而非销毁，下次打开直接 show
             if let Some(window) = app.get_webview_window("notify") {
-                hide_on_close(&window);
-            }
-            if let Some(window) = app.get_webview_window("about") {
                 hide_on_close(&window);
             }
 
@@ -568,11 +566,9 @@ pub fn run(autostart: bool) {
                 }
             }
 
-            // 高分屏适配：把各窗口收进当前显示器工作区，避免超出屏幕
-            for label in ["main", "settings", "about"] {
-                if let Some(window) = app.get_webview_window(label) {
-                    fit_to_work_area(&window);
-                }
+            // 高分屏适配：把窗口收进当前显示器工作区，避免超出屏幕
+            if let Some(window) = app.get_webview_window("main") {
+                fit_to_work_area(&window);
             }
 
             // 开机自启动模式：所有窗口先全部藏起来，后台静默检查更新，
@@ -583,7 +579,7 @@ pub fn run(autostart: bool) {
             // 收缩，这些调用有可能把它带出来 —— 用户看到的就是"开机自启动时
             // 关于窗口自己冒出来"。只藏 main 挡不住。
             if autostart {
-                for label in ["main", "settings", "notify", "about"] {
+                for label in ["main", "notify"] {
                     if let Some(window) = app.get_webview_window(label) {
                         let _ = window.hide();
                     }

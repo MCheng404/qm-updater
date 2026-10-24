@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QM Updater</title>
+    <style>
+      /* 首屏底色：Vue 挂载前避免白闪（与 styles.css 的 --bg-root 保持一致） */
+      html body {
+        background: #0d1014;
+      }
+      @media (prefers-color-scheme: light) {
+        html body {
+          background: #eef1f5;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>

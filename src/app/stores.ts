@@ -18,8 +18,6 @@ import {
   saveTheme,
   type ThemeMode,
   type ThemeState,
-  type WindowMaterial,
-  type TextRender,
 } from './theme';
 import {
   SETTINGS_CHANGED_EVENT,
@@ -75,11 +73,6 @@ export const useThemeStore = defineStore('theme', () => {
     commit();
   }
 
-  function setOpacity(v: number): void {
-    state.value = { ...state.value, opacity: v };
-    commit();
-  }
-
   function setRadius(v: number): void {
     state.value = { ...state.value, radius: v };
     commit();
@@ -87,21 +80,6 @@ export const useThemeStore = defineStore('theme', () => {
 
   function setReduceMotion(v: boolean): void {
     state.value = { ...state.value, reduceMotion: v };
-    commit();
-  }
-
-  function setTextRender(v: TextRender): void {
-    state.value = { ...state.value, textRender: v };
-    commit();
-  }
-
-  function setTextStrength(v: number): void {
-    state.value = { ...state.value, textStrength: v };
-    commit();
-  }
-
-  function setMaterial(v: WindowMaterial): void {
-    state.value = { ...state.value, material: v };
     commit();
   }
 
@@ -128,12 +106,8 @@ export const useThemeStore = defineStore('theme', () => {
     setColor,
     resetColor,
     setMode,
-    setOpacity,
     setRadius,
     setReduceMotion,
-    setTextRender,
-    setTextStrength,
-    setMaterial,
     resetAll,
     reapplyIfSystem,
   };

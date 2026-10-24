@@ -3,16 +3,13 @@
  * 关于窗口（label=about）。
  * 由旧版 src/about.ts + about.html 移植为 Vue 响应式实现。
  */
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
-import TitleBar from '../components/TitleBar.vue';
-import { useCrossWindowSync } from '../app/shared';
 
-useCrossWindowSync();
-const { t, locale } = useI18n();
+const { t } = useI18n();
 
 const GITHUB_PROFILE = 'https://github.com/MCheng404';
 const GITHUB_REPO = 'https://github.com/MCheng404/qm-updater';
@@ -156,19 +153,11 @@ onMounted(() => {
     });
 });
 
-/* 文档标题跟随语言（about.title） */
-const applyDocTitle = (): void => {
-  document.title = t('about.title');
-};
-watch(locale, applyDocTitle);
-applyDocTitle();
+/* 文档标题由 App.vue 统一维护 */
 </script>
 
 <template>
-  <div class="glass-root about-root">
-    <TitleBar title-key="about.title" />
-
-    <div class="about-scroll">
+  <div class="about-scroll">
       <div class="about-hero">
         <div class="about-logo">
           <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
@@ -287,6 +276,5 @@ applyDocTitle();
       <div class="about-footer">
         <span>{{ $t('about.madeWith') }}</span>
       </div>
-    </div>
   </div>
 </template>

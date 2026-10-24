@@ -40,8 +40,8 @@ const stripeColor = computed(() => LEVEL_COLOR[props.level] ?? LEVEL_COLOR.info)
 
 /**
  * 多层背景：级别色调叠加 + 不透明底。
- * 第二层必须是 --toast-base 而不是 --bg-card：窗口去掉 acrylic 后没有材质兜底，
- * 用近乎透明的 --bg-card 会让 toast 在浅色桌面上几乎看不见。
+ * 底色走 --toast-base（纯色表面）：通知窗口本身是透明的，卡片必须自己撑起可读性，
+ * 用近乎透明的底色会让 toast 在浅色桌面上几乎看不见。
  * 给 var() 带上兜底值：万一变量没定义，整条 background 声明会被判为无效，
  * 卡片就只剩一圈描边、没有底色。
  */

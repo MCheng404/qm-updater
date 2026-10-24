@@ -8,13 +8,11 @@ import { useI18n } from 'vue-i18n';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import TitleBar from '../components/TitleBar.vue';
 import UpdateItem from '../components/UpdateItem.vue';
 import { ICON, SOURCE_ICON } from '../app/icons';
 import { popCheckbox, pulse } from '../app/dom';
 import { isItemIgnored } from '../app/app-settings';
 import { useAppSettingsStore } from '../app/stores';
-import { useCrossWindowSync } from '../app/shared';
 import type {
   EnvStatus,
   ItemResult,
@@ -24,8 +22,7 @@ import type {
   UpdateItem as UpdateItemModel,
 } from '../app/types';
 
-useCrossWindowSync();
-const { t, locale } = useI18n();
+const { t } = useI18n();
 const appSettingsStore = useAppSettingsStore();
 const appSettings = computed(() => appSettingsStore.state);
 
@@ -155,6 +152,10 @@ const envChips = computed(() => {
       on: env.nodeOk,
       title: env.nodeOk ? undefined : t('env.nodeHint'),
     });
+  }
+  // 管理员标记（单窗口后从标题栏移到工具条）
+  if (env.isAdmin) {
+    chips.push({ key: 'admin', text: t('app.admin'), on: true });
   }
   return chips;
 });
@@ -462,12 +463,6 @@ function getWindow(): ReturnType<typeof getCurrentWindow> | null {
   }
 }
 
-function openSettings(): void {
-  void invoke('open_settings').catch((e) => {
-    setStatusLeft('status.openSettingsFailed', { error: String(e) });
-  });
-}
-
 function listenSafe<T>(event: string, handler: (payload: T) => void): void {
   void listen<T>(event, (e) => handler(e.payload)).catch((e) =>
     console.warn(`[main] ${event} 监听失败`, e),
@@ -569,25 +564,10 @@ async function autostartCheck(): Promise<void> {
     if (win) await win.show();
   }
 }
-
-/* 文档标题跟随语言（app.title） */
-watch(locale, () => {
-  document.title = t('app.title');
-});
-document.title = t('app.title');
 </script>
 
 <template>
-  <div class="glass-root">
-    <TitleBar
-      title-key="app.title"
-      :show-settings="true"
-      :show-min-max="true"
-      :admin="lastEnv?.isAdmin ?? false"
-      @open-settings="openSettings"
-    />
-
-    <main class="view">
+  <main class="view">
       <div class="toolbar">
         <div class="env-chips">
           <span
@@ -705,7 +685,6 @@ document.title = t('app.title');
         <span>{{ statusLeftText }}</span>
         <span ref="statusRightEl" class="stat-right">{{ statusRightText }}</span>
       </footer>
-    </main>
-  </div>
+  </main>
 </template>
 

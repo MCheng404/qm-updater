@@ -1,7 +1,7 @@
-/** 主窗口入口（index.html） */
+/** 主窗口入口（index.html）：单窗口内包含 更新 / 设置 / 关于 三个视图 */
 import '../styles.css';
 import { createApp } from 'vue';
 import { sharedPlugin } from '../app/shared';
-import MainView from '../views/MainView.vue';
+import App from '../App.vue';
 
-createApp(MainView).use(sharedPlugin).mount('#app');
+createApp(App).use(sharedPlugin).mount('#app');

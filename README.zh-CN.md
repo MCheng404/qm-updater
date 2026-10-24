@@ -11,7 +11,7 @@
 ## 功能特性
 
 - 🔄 **四源统一更新检查** — 同时检查 npm 全局包、winget 软件、pip Python 包、OpenClaw
-- 📢 **双模式通知** — 应用内毛玻璃通知 + Windows 系统通知，可自选位置和时长
+- 📢 **双模式通知** — 应用内浮层通知 + Windows 系统通知，可自选位置和时长
 - 🎨 **主题定制** — 浅色 / 深色 / 跟随系统，6 种配色预设，自定义强调色/文字色/背景浓度/圆角
 - 🌍 **多语言支持** — 简体中文 / English，设置中一键切换
 - 🚫 **忽略管理** — 忽略此版本（版本更新后自动恢复）/ 永久忽略（黑名单可移除）
@@ -26,7 +26,7 @@
 
 - **前端**: Vue 3 + TypeScript + Vite + Pinia + vue-i18n（原生 CSS，无 UI 组件库）
 - **后端**: Rust + Tauri 2
-- **窗口效果**: Acrylic / Mica 毛玻璃
+- **界面**: 纯色分层表面 · 大圆角 · 悬浮卡片 · 统一动效
 - **打包**: NSIS 安装包
 
 ## 安装
@@ -62,8 +62,9 @@ npm run tauri:build -- --target aarch64-pc-windows-msvc
 
 ```
 ├── src/                    # 前端源码（Vue 3）
-│   ├── entries/           # 四个窗口的入口：main / settings / notify / about
-│   ├── views/             # 窗口视图：MainView / SettingsView / NotifyView / AboutView
+│   ├── App.vue            # 单窗口外壳：标题栏 + 左侧导航 + 视图切换
+│   ├── entries/           # 入口：main（主窗口）/ notify（通知浮层）
+│   ├── views/             # 视图：MainView / SettingsView / AboutView / NotifyView
 │   ├── components/        # 复用组件：TitleBar / UpdateItem / ToastCard
 │   ├── app/               # 共享层
 │   │   ├── i18n.ts        # vue-i18n 实例
@@ -89,10 +90,8 @@ npm run tauri:build -- --target aarch64-pc-windows-msvc
 │   │   │   └── openclaw.rs
 │   │   └── ...
 │   └── tauri.conf.json    # Tauri 配置
-├── index.html             # 主窗口
-├── settings.html          # 设置窗口
-├── notify.html            # 通知窗口
-└── about.html             # 关于窗口
+├── index.html             # 主窗口（内含 更新 / 设置 / 关于 三个视图）
+└── notify.html            # 通知浮层窗口
 ```
 
 ## 许可证

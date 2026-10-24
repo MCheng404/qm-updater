@@ -38,7 +38,7 @@ if (!fail) console.log('✅ 中英 key 完全对齐');
 
 // ---- 收集引用（扫全部 .vue / .ts，跳过语言包本身） ----
 const used = new Set();
-const NS = 'common|app|btn|env|status|empty|group|log|action|notify|settings|about';
+const NS = 'common|app|nav|btn|env|status|empty|group|log|action|notify|settings|about';
 const keyLike = new RegExp(`'((?:${NS})\\.[A-Za-z0-9_.]+)'`, 'g');
 
 const sources = walk('src').filter((p) => /\.(vue|ts)$/.test(p) && !p.includes('locales'));
@@ -58,8 +58,6 @@ for (const f of sources) {
 const KINDS = ['npm', 'winget', 'pip', 'openclaw'];
 const PRESETS = ['teal', 'azure', 'violet', 'amber', 'rose', 'jade'];
 const POS = ['topLeft', 'topCenter', 'topRight', 'bottomLeft', 'bottomCenter', 'bottomRight'];
-const RENDERS = ['Auto', 'None', 'Outline', 'Shadow', 'Both'];
-const MATERIALS = ['None', 'Acrylic', 'Mica', 'Tabbed', 'Blur'];
 for (const k of KINDS) used.add(`group.${k}`);
 for (const p of PRESETS) used.add(`settings.preset.${p}`);
 for (const p of POS) {
@@ -67,8 +65,6 @@ for (const p of POS) {
   used.add(`settings.pos.${p}`);
   used.add(`settings.pos.${p}Hint`);
 }
-for (const r of RENDERS) used.add(`settings.render${r}`);
-for (const m of MATERIALS) used.add(`settings.material${m}`);
 
 const missing = [...used].filter((k) => {
   if (zh.has(k)) return false;

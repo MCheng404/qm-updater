@@ -85,7 +85,7 @@ for (const f of sources) {
 }
 
 // HTML 入口只剩 #app 挂载点，仍扫一遍以防将来放回静态类名
-for (const f of ['index.html', 'settings.html', 'notify.html', 'about.html']) {
+for (const f of ['index.html', 'notify.html']) {
   const html = readFileSync(f, 'utf8');
   for (const m of html.matchAll(/class="([^"]*)"/g)) {
     for (const tok of m[1].split(/\s+/)) if (tok) used.add(tok);

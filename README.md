@@ -26,7 +26,7 @@ A desktop tool for unified software updates across npm, winget, pip, and OpenCla
 
 - **Frontend**: Vue 3 + TypeScript + Vite + Pinia + vue-i18n (native CSS, no UI component library)
 - **Backend**: Rust + Tauri 2
-- **Window effects**: Acrylic / Mica blur
+- **UI**: solid layered surfaces, large radii, floating cards, unified motion
 - **Packaging**: NSIS installer
 
 ## Installation
@@ -62,8 +62,9 @@ npm run tauri:build -- --target aarch64-pc-windows-msvc
 
 ```
 ├── src/                    # Frontend source (Vue 3)
-│   ├── entries/           # Entry points for the four windows: main / settings / notify / about
-│   ├── views/             # Window views: MainView / SettingsView / NotifyView / AboutView
+│   ├── App.vue            # Single-window shell: titlebar + sidebar + view switch
+│   ├── entries/           # Entry points: main (main window) / notify (toast overlay)
+│   ├── views/             # Views: MainView / SettingsView / AboutView / NotifyView
 │   ├── components/        # Shared components: TitleBar / UpdateItem / ToastCard
 │   ├── app/               # Shared layer
 │   │   ├── i18n.ts        # vue-i18n instance
@@ -89,10 +90,8 @@ npm run tauri:build -- --target aarch64-pc-windows-msvc
 │   │   │   └── openclaw.rs
 │   │   └── ...
 │   └── tauri.conf.json    # Tauri configuration
-├── index.html             # Main window
-├── settings.html          # Settings window
-├── notify.html            # Notification window
-└── about.html             # About window
+├── index.html             # Main window (contains Updates / Settings / About views)
+└── notify.html            # Toast overlay window
 ```
 
 ## License

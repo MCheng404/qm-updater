@@ -19,13 +19,11 @@ export default defineConfig({
     minify: 'esbuild',
     sourcemap: false,
     chunkSizeWarningLimit: 2000,
-    // 多页面：主窗口 + 设置子窗口 + 通知窗口 + 关于窗口
+    // 多页面：主窗口（单窗口内含 更新/设置/关于 三个视图）+ 通知浮层
     rollupOptions: {
       input: {
         main: 'index.html',
-        settings: 'settings.html',
         notify: 'notify.html',
-        about: 'about.html',
       },
     },
   },

@@ -39,7 +39,7 @@ function collectFiles() {
     }
   };
   walk(join(ROOT, 'src'));
-  for (const f of ['index.html', 'settings.html', 'notify.html', 'about.html']) {
+  for (const f of ['index.html', 'notify.html']) {
     out.push(join(ROOT, f));
   }
   return out;

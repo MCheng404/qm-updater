@@ -3,12 +3,11 @@
  * 设置窗口（label=settings）。
  * 由旧版 src/settings.ts + settings.html 移植为 Vue 响应式实现。
  */
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
-import TitleBar from '../components/TitleBar.vue';
-import { PRESETS, type TextRender, type WindowMaterial } from '../app/theme';
+import { PRESETS } from '../app/theme';
 import {
   DEFAULT_FONT,
   commitFont,
@@ -17,11 +16,12 @@ import {
   type FontSource,
 } from '../app/font';
 import { useThemeStore, useAppSettingsStore } from '../app/stores';
-import { useCrossWindowSync } from '../app/shared';
 import type { NotifyPrefs } from '../app/types';
 
-useCrossWindowSync();
 const { t, locale } = useI18n();
+const emit = defineEmits<{
+  (e: 'navigate', view: 'about'): void;
+}>();
 const theme = useThemeStore();
 const appSettings = useAppSettingsStore();
 
@@ -49,8 +49,6 @@ const posName = computed(() => t(`settings.pos.${POS_KEY[notify.value.position] 
 const posHintText = computed(() => t(`settings.pos.${POS_KEY[notify.value.position] ?? 'bottomRight'}Hint`));
 
 /* ============ 选项清单 ============ */
-const RENDER_OPTIONS: TextRender[] = ['auto', 'none', 'outline', 'shadow', 'both'];
-const MATERIAL_OPTIONS: WindowMaterial[] = ['none', 'acrylic', 'mica', 'tabbed', 'blur'];
 const FONT_SOURCES: Array<{ src: FontSource; labelKey: string }> = [
   { src: 'builtin', labelKey: 'settings.fontBuiltin' },
   { src: 'system', labelKey: 'settings.fontSystem' },
@@ -306,7 +304,7 @@ function openLogDir(): void {
 }
 
 function openAbout(): void {
-  void invoke('open_about');
+  emit('navigate', 'about');
 }
 
 /* ============ 初始化 ============ */
@@ -349,19 +347,11 @@ onMounted(() => {
     });
 });
 
-/* 文档标题跟随语言（settings.title） */
-const applyDocTitle = (): void => {
-  document.title = t('settings.title');
-};
-watch(locale, applyDocTitle);
-applyDocTitle();
+/* 文档标题由 App.vue 统一维护 */
 </script>
 
 <template>
-  <div class="glass-root">
-    <TitleBar title-key="settings.title" />
-
-    <div class="settings-scroll">
+  <div class="settings-scroll">
       <section class="settings-section">
         <h2>{{ $t('settings.appearancePresets') }}</h2>
         <div class="preset-grid">
@@ -462,19 +452,6 @@ applyDocTitle();
           </select>
         </div>
         <div class="field-row">
-          <label for="rangeOpacity">{{ $t('settings.opacity') }}</label>
-          <input
-            id="rangeOpacity"
-            type="range"
-            min="15"
-            max="80"
-            step="1"
-            :value="theme.state.opacity"
-            @input="onNumberInput(theme.setOpacity, $event)"
-          />
-          <span class="field-value mono">{{ theme.state.opacity }}%</span>
-        </div>
-        <div class="field-row">
           <label for="rangeRadius">{{ $t('settings.radius') }}</label>
           <input
             id="rangeRadius"
@@ -537,59 +514,6 @@ applyDocTitle();
           <span class="field-value mono">{{ appSettings.state.autostartDelay }}s</span>
         </div>
         <p class="field-hint">{{ $t('settings.startupHint') }}</p>
-      </section>
-
-      <section class="settings-section">
-        <h2>{{ $t('settings.sectionTextRender') }}</h2>
-        <div class="field-row field-row-stack">
-          <label>{{ $t('settings.textRenderMode') }}</label>
-          <div class="mode-selector">
-            <button
-              v-for="r in RENDER_OPTIONS"
-              :key="r"
-              class="mode-btn"
-              :class="{ active: theme.state.textRender === r }"
-              type="button"
-              @click="theme.setTextRender(r)"
-            >
-              {{ $t('settings.render' + r.charAt(0).toUpperCase() + r.slice(1)) }}
-            </button>
-          </div>
-        </div>
-        <div class="field-row">
-          <label for="rangeTextStrength">{{ $t('settings.textStrength') }}</label>
-          <input
-            id="rangeTextStrength"
-            type="range"
-            min="0"
-            max="100"
-            step="5"
-            :value="theme.state.textStrength"
-            @input="onNumberInput(theme.setTextStrength, $event)"
-          />
-          <span class="field-value mono">{{ theme.state.textStrength }}%</span>
-        </div>
-        <p class="field-hint">{{ $t('settings.textRenderHint') }}</p>
-      </section>
-
-      <section class="settings-section">
-        <h2>{{ $t('settings.sectionMaterial') }}</h2>
-        <div class="field-row field-row-stack">
-          <label>{{ $t('settings.material') }}</label>
-          <div class="mode-selector">
-            <button
-              v-for="m in MATERIAL_OPTIONS"
-              :key="m"
-              class="mode-btn"
-              :class="{ active: theme.state.material === m }"
-              type="button"
-              @click="theme.setMaterial(m)"
-            >
-              {{ $t('settings.material' + m.charAt(0).toUpperCase() + m.slice(1)) }}
-            </button>
-          </div>
-        </div>
-        <p class="field-hint">{{ $t('settings.materialHint') }}</p>
       </section>
 
       <section class="settings-section">
@@ -837,7 +761,6 @@ applyDocTitle();
           {{ $t('settings.resetAppearance') }}
         </button>
       </div>
-    </div>
   </div>
 </template>
 

@@ -1,3 +1,8 @@
+/* ==========================================================================
+   QM Updater — 设计系统
+   纯色分层表面 · 大圆角 · 悬浮卡片 · 统一动效
+   ========================================================================== */
+
 /* ============ 内嵌字体 ============ */
 @font-face {
   font-family: 'LXGW Neo XiHei Plus';
@@ -30,77 +35,104 @@
   font-display: swap;
 }
 
-/* ============ 设计变量（部分由 JS 主题系统覆写） ============ */
+/* ============ 设计令牌 ============ */
 :root {
   --font-cn: 'LXGW Neo XiHei Plus', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
   --font-en: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
 
-  /* 通知卡片阴影：由这一对变量统一供给，深浅色各一套。
-     原来那 4~5 层暗色 inset 叠起来会把卡片糊成一块黑底，且完全不跟随主题。 */
-  --toast-shadow: 0 12px 32px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.2);
-  --toast-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.48), 0 4px 12px rgba(0, 0, 0, 0.26);
-  /* 通知卡片的"实底"。⚠️ **不能删** —— notify.ts 是内联使用它的：
-       background = linear-gradient(tint,tint), linear-gradient(base,base)。
-     它不在 CSS 规则里出现，所以只 grep 样式表会误判成死代码（我犯过这个错）。
-     存在的理由：窗口选"无材质"时没有任何 DWM 兜底，若用近乎透明的 --bg-card，
-     卡片在浅色桌面上几乎看不见，只剩一圈 1px 描边。深浅色各一套，见下方浅色块。 */
-  --toast-base: rgba(20, 23, 29, 0.88);
-  /* Toast 卡片底色。
-     通知窗口是**纯透明**的：既不能设 backgroundColor（会渲染成不透明白/黑底），
-     也不能开 acrylic（材质铺满整个窗口矩形，比卡片宽就在左右各露一条）。
-     所以卡片必须自己撑起可读性 —— 用半透明玻璃色，别用深色实心底。 */
-
-
-  /* 字号缩放：由字体设置写入，1 = 标准。所有文字尺寸都乘以它。
-     基线比旧版整体放大约 8%，并把原先散落的 10 个字号值收敛成 9 个层级。 */
+  /* 字号阶梯：--fs 由字体设置写入，1 = 标准 */
   --fs: 1;
-  --t-1: calc(10.5px * var(--fs));  /* 角标 / 极小 */
-  --t-2: calc(11.5px * var(--fs));  /* 时间戳 / 失败标 */
-  --t-3: calc(12px * var(--fs));    /* 次要文字 / 标签 */
-  --t-4: calc(12.5px * var(--fs));  /* 版本号 / 日志正文 */
-  --t-5: calc(13px * var(--fs));    /* 面板小标题 */
-  --t-6: calc(13.5px * var(--fs));  /* 按钮 / 分组标题 */
-  --t-7: calc(14px * var(--fs));    /* 条目名称 */
-  --t-8: calc(14.5px * var(--fs));  /* 正文基准 */
-  --t-9: calc(23px * var(--fs));    /* 关于页应用名 */
+  --t-1: calc(10.5px * var(--fs));
+  --t-2: calc(11.5px * var(--fs));
+  --t-3: calc(12px * var(--fs));
+  --t-4: calc(12.5px * var(--fs));
+  --t-5: calc(13px * var(--fs));
+  --t-6: calc(13.5px * var(--fs));
+  --t-7: calc(14px * var(--fs));
+  --t-8: calc(14.5px * var(--fs));
+  --t-9: calc(23px * var(--fs));
 
+  /* 强调色（JS 覆盖） */
   --accent: #2dd4bf;
-  --accent-soft: rgba(45, 212, 191, 0.14);
-  --accent-glow: rgba(45, 212, 191, 0.5);
+  --accent-soft: rgba(45, 212, 191, 0.16);
+  --accent-softer: rgba(45, 212, 191, 0.08);
+  --accent-glow: rgba(45, 212, 191, 0.35);
+  --accent-line: rgba(45, 212, 191, 0.45);
+  --on-accent: #08120f;
 
-  --text: #f4f7fa;
-  --text-dim: rgba(244, 247, 250, 0.72);
-  --text-faint: rgba(244, 247, 250, 0.44);
+  /* 文字（JS 覆盖） */
+  --text: #f2f5f9;
+  --text-dim: rgba(169, 180, 194, 0.78);
+  --text-faint: rgba(169, 180, 194, 0.5);
 
-  --bg-alpha: 0.38;
-  --bg-root: rgba(13, 15, 19, var(--bg-alpha));
-  --bg-card: rgba(255, 255, 255, 0.038);
-  --bg-card-hover: rgba(255, 255, 255, 0.07);
-  --bg-sunken: rgba(0, 0, 0, 0.2);
+  /* 圆角阶梯（基准由 JS 写入，默认 18px） */
+  --radius-base: 18px;
+  --radius-xl: calc(var(--radius-base) + 6px);
+  --radius-lg: var(--radius-base);
+  --radius-md: calc(var(--radius-base) * 0.72);
+  --radius-sm: calc(var(--radius-base) * 0.55);
+  --radius-xs: calc(var(--radius-base) * 0.4);
+  --radius-pill: 999px;
 
-  --line: rgba(255, 255, 255, 0.07);
-  --line-strong: rgba(255, 255, 255, 0.13);
+  /* 动效 */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --dur-fast: 0.14s;
+  --dur: 0.22s;
+  --dur-slow: 0.32s;
 
+  /* 语义色 */
   --ok: #4ade80;
   --warn: #fbbf24;
   --err: #f87171;
   --info: #60a5fa;
 
-  --radius-base: 18px;
-  --radius: var(--radius-base);
-  --radius-sm: calc(var(--radius-base) * 0.62);
-  --radius-xs: calc(var(--radius-base) * 0.4);
+  /* 通知卡片（JS 内联使用 var(--toast-base)） */
+  --toast-base: #171c23;
+  --toast-shadow: 0 8px 18px rgba(0, 0, 0, 0.5), 0 24px 48px rgba(0, 0, 0, 0.55);
+  --toast-shadow-hover: 0 10px 24px rgba(0, 0, 0, 0.55), 0 28px 56px rgba(0, 0, 0, 0.6);
+}
 
-  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+/* ---- 深色表面（默认） ---- */
+html[data-theme='dark'],
+:root {
+  --bg-root: #0d1014;
+  --surface-1: #15191f;
+  --surface-2: #1b2028;
+  --surface-3: #232b36;
+  --surface-sunken: #0a0c0f;
+
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.12);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45), 0 4px 14px rgba(0, 0, 0, 0.32);
+  --shadow-2: 0 4px 10px rgba(0, 0, 0, 0.45), 0 14px 32px rgba(0, 0, 0, 0.42);
+}
+
+/* ---- 浅色表面 ---- */
+html[data-theme='light'] {
+  --bg-root: #eef1f5;
+  --surface-1: #ffffff;
+  --surface-2: #f6f8fb;
+  --surface-3: #eaeff6;
+  --surface-sunken: #e2e8f0;
+
+  --line: rgba(16, 24, 40, 0.08);
+  --line-strong: rgba(16, 24, 40, 0.14);
+
+  --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 12px rgba(16, 24, 40, 0.06);
+  --shadow-2: 0 4px 10px rgba(16, 24, 40, 0.08), 0 14px 30px rgba(16, 24, 40, 0.1);
+
+  --toast-base: #ffffff;
+  --toast-shadow: 0 8px 18px rgba(16, 24, 40, 0.12), 0 24px 48px rgba(16, 24, 40, 0.16);
+  --toast-shadow-hover: 0 10px 24px rgba(16, 24, 40, 0.16), 0 28px 56px rgba(16, 24, 40, 0.2);
 }
 
 * {
   box-sizing: border-box;
 }
 
-/* 作者样式里的 display 会盖掉 HTML hidden 属性的默认 display:none，
-   必须显式兜底，否则 .pane-empty / .progress-wrap / .view 的 hidden 全部失效 */
 [hidden] {
   display: none !important;
 }
@@ -122,14 +154,11 @@ body {
   cursor: default;
 }
 
-/* 减弱动画模式
- *
- * 两条并存、语义不同：
- *   - 上面的 body.reduce-motion 是**应用内**开关（设置面板可单独关闭）
- *   - 下面的 @media 跟随**系统**的"减少动态效果"（Windows 设置 → 辅助功能）
- *     此前系统级开关对本应用完全无效：所有无限动画（dotPulse / emptyPulse /
- *     logoPulse）照常全速运行，用户只能自己进设置面板才知道有这回事。
- */
+#app {
+  height: 100%;
+}
+
+/* 减弱动画：应用内开关 + 系统辅助功能设置 */
 body.reduce-motion *,
 body.reduce-motion *::before,
 body.reduce-motion *::after {
@@ -146,7 +175,7 @@ body.reduce-motion *::after {
   }
 }
 
-/* ============ 动画 ============ */
+/* ============ 关键帧 ============ */
 @keyframes cardIn {
   from {
     opacity: 0;
@@ -160,7 +189,7 @@ body.reduce-motion *::after {
 @keyframes viewIn {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -175,30 +204,27 @@ body.reduce-motion *::after {
 @keyframes dotPulse {
   0%,
   100% {
-    box-shadow: 0 0 6px 0 var(--accent-glow);
+    box-shadow: 0 0 0 0 var(--accent-glow);
   }
   50% {
-    box-shadow: 0 0 12px 3px var(--accent-glow);
+    box-shadow: 0 0 0 5px transparent;
   }
 }
 @keyframes barPulse {
   0%,
   100% {
-    opacity: 0.6;
+    opacity: 0.7;
   }
   50% {
     opacity: 1;
   }
 }
-
-/* ---- 交互动画 ---- */
-/* 复选框：用户点选时的一次性反馈（由 JS 加 .box-pop，避免每次重渲染重播） */
 @keyframes boxPop {
   0% {
     transform: scale(1);
   }
   45% {
-    transform: scale(1.18);
+    transform: scale(1.16);
   }
   100% {
     transform: scale(1);
@@ -211,7 +237,7 @@ body.reduce-motion *::after {
   }
   60% {
     opacity: 1;
-    transform: rotate(45deg) scale(1.18);
+    transform: rotate(45deg) scale(1.15);
   }
   100% {
     opacity: 1;
@@ -228,26 +254,114 @@ body.reduce-motion *::after {
     transform: scaleX(1);
   }
 }
-/* 数值/文本变化的"弹一下"，由 JS 加类触发 */
 @keyframes popPulse {
   0% {
     transform: scale(1);
   }
   40% {
-    transform: scale(1.16);
+    transform: scale(1.14);
   }
   100% {
     transform: scale(1);
   }
 }
-/* 进度条走完时的一次呼吸 */
 @keyframes fillDone {
   0%,
   100% {
-    box-shadow: 0 0 12px var(--accent-glow);
+    box-shadow: 0 0 10px var(--accent-glow);
   }
   50% {
-    box-shadow: 0 0 24px 3px var(--accent-glow);
+    box-shadow: 0 0 22px 4px var(--accent-glow);
+  }
+}
+@keyframes emptyFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes emptyPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--accent-soft);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+@keyframes logFlash {
+  0% {
+    background: var(--accent-soft);
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  100% {
+    background: transparent;
+    box-shadow: inset 0 0 0 2px transparent;
+  }
+}
+@keyframes itemIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(var(--toast-in-x, 0px), var(--toast-in-y, 16px)) scale(0.94);
+  }
+  to {
+    opacity: var(--notif-opacity, 1);
+    transform: none;
+  }
+}
+@keyframes toastOut {
+  from {
+    opacity: var(--notif-opacity, 1);
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--toast-in-x, 0px), var(--toast-in-y, 16px)) scale(0.96);
+  }
+}
+@keyframes aboutHeroIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes logoPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--accent-soft);
+  }
+  50% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+@keyframes aboutSectionIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -255,17 +369,137 @@ body.reduce-motion *::after {
   animation: popPulse 0.34s var(--ease);
 }
 
-/* ============ 根容器 ============ */
-.glass-root {
-  height: 100vh;
+/* ============ 单窗口外壳：标题栏 + 左侧导航 + 右侧内容 ============ */
+.app-shell {
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg-root);
+  overflow: hidden;
+}
+.app-body {
+  flex: 1;
+  display: flex;
+  gap: 14px;
+  padding: 0 14px;
+  min-height: 0;
+}
+
+/* 左侧导航：与内容卡片同语言的悬浮面板 */
+.sidebar {
+  flex: 0 0 198px;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 14px;
+  padding: 10px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--line);
-  transform: translateZ(0);
-  /* 注意：不要在这里加 border-radius。
-     窗口的 acrylic 背景由 DWM 覆盖整个窗口矩形，圆角裁掉的只是 DOM 内容，
-     四个角会露出"方形的模糊底"，比直角更难看。 */
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
+  animation: cardIn var(--dur-slow) var(--ease) both;
+  transition: box-shadow var(--dur) var(--ease);
+}
+.sidebar:hover {
+  box-shadow: var(--shadow-2);
+}
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: var(--t-6);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease), transform var(--dur) var(--ease-spring),
+    box-shadow var(--dur) var(--ease);
+}
+.nav-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  transform: translateX(2px);
+  box-shadow: var(--shadow-1);
+}
+.nav-item:active {
+  transform: translateX(2px) scale(0.985);
+}
+/* 选中项：抬起的强调色胶囊 + 左侧指示条 */
+.nav-item.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+  font-weight: 500;
+  box-shadow: var(--shadow-1);
+}
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transform: translateY(-50%);
+  transition: height var(--dur) var(--ease-spring);
+}
+.nav-item.active::before {
+  height: 16px;
+}
+.nav-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  opacity: 0.9;
+  transition: transform var(--dur) var(--ease-spring), opacity var(--dur) var(--ease);
+}
+.nav-icon .ico {
+  width: 16px;
+  height: 16px;
+}
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {
+  opacity: 1;
+  transform: scale(1.08);
+}
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-foot {
+  margin-top: auto;
+  padding: 12px 4px 2px;
+}
+.sidebar-foot .mono {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: var(--t-2);
+  color: var(--text-faint);
+}
+.content-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .view {
@@ -273,49 +507,42 @@ body.reduce-motion *::after {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  animation: viewIn 0.28s var(--ease) both;
+  animation: viewIn var(--dur-slow) var(--ease) both;
 }
 
 /* ============ 标题栏 ============ */
 .titlebar {
-  flex: 0 0 42px;
+  flex: 0 0 46px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px 0 16px;
-  border-bottom: 1px solid var(--line);
+  padding: 0 10px 0 18px;
 }
 .tb-left {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
 }
 .tb-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-  animation: dotPulse 2.6s ease-in-out infinite;
+  box-shadow: 0 0 0 0 var(--accent-glow);
+  animation: dotPulse 2.8s ease-in-out infinite;
 }
 .tb-title {
   font-size: var(--t-6);
-  letter-spacing: 0.5px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
   color: var(--text-dim);
-}
-.tb-badge {
-  font-size: var(--t-2);
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
 .tb-right {
   display: flex;
-  gap: 3px;
+  gap: 4px;
 }
 .tb-btn {
-  width: 34px;
+  width: 32px;
   height: 28px;
   display: grid;
   place-items: center;
@@ -324,18 +551,18 @@ body.reduce-motion *::after {
   border-radius: var(--radius-xs);
   color: var(--text-dim);
   cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease),
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
     transform 0.1s var(--ease);
 }
 .tb-btn:hover {
-  background: color-mix(in srgb, var(--text) 9%, transparent);
+  background: var(--surface-3);
   color: var(--text);
 }
 .tb-btn:active {
-  transform: scale(0.9); /* 窗口按钮点下去的手感 */
+  transform: scale(0.92);
 }
 .tb-btn.tb-close:hover {
-  background: rgba(248, 113, 113, 0.18);
+  background: rgba(248, 113, 113, 0.16);
   color: var(--err);
 }
 .tb-btn svg {
@@ -354,44 +581,43 @@ body.reduce-motion *::after {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--line);
+  padding: 16px 18px 12px;
 }
 .env-chips {
   display: flex;
-  gap: 6px;
+  gap: 7px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 .chip {
   font-family: var(--font-mono);
   font-size: var(--t-3);
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
-  background: var(--bg-card);
+  background: var(--surface-1);
   color: var(--text-faint);
-  animation: cardIn 0.3s var(--ease) both;
-  /* 注意：.chip 自带 cardIn（fill: both），其 transform 会压过 :hover 的 transform，
-     所以悬停反馈只能用颜色/边框，不能用位移。 */
-  transition: background 0.18s var(--ease), border-color 0.18s var(--ease),
-    color 0.18s var(--ease);
+  animation: cardIn var(--dur-slow) var(--ease) both;
+  /* cardIn 的 transform 会压过 hover 位移，悬停反馈只用颜色/边框 */
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
 }
 .chip:hover {
-  background: var(--bg-card-hover);
+  background: var(--surface-2);
   border-color: var(--line-strong);
   color: var(--text-dim);
 }
 .chip.on {
   color: var(--ok);
-  border-color: rgba(74, 222, 128, 0.3);
+  border-color: rgba(74, 222, 128, 0.32);
   background: rgba(74, 222, 128, 0.1);
 }
 .chip.off {
-  opacity: 0.5;
+  opacity: 0.55;
 }
 .toolbar-actions {
   display: flex;
-  gap: 8px;
+  gap: 9px;
   flex: 0 0 auto;
 }
 
@@ -399,48 +625,52 @@ body.reduce-motion *::after {
 .btn {
   font-family: inherit;
   font-size: var(--t-6);
-  padding: 8px 16px;
+  font-weight: 500;
+  height: 34px;
+  padding: 0 15px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
-  background: var(--bg-card);
+  background: var(--surface-1);
   color: var(--text);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
-  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
-    transform 0.12s var(--ease), box-shadow 0.15s var(--ease);
+  white-space: nowrap;
+  box-shadow: var(--shadow-1);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
 .btn:hover:not(:disabled) {
-  background: var(--bg-card-hover);
-  border-color: color-mix(in srgb, var(--text) 22%, transparent);
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--text) 18%, transparent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-2);
 }
 .btn:active:not(:disabled) {
-  transform: translateY(1px) scale(0.97);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-.btn:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft), 0 0 12px var(--accent-glow);
+  transform: translateY(0) scale(0.97);
+  box-shadow: var(--shadow-1);
 }
 .btn:disabled {
-  opacity: 0.38;
+  opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 .btn-primary {
-  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 2px 10px -2px var(--accent-glow), var(--shadow-1);
 }
 .btn-primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
-  box-shadow: 0 0 16px var(--accent-glow);
+  background: color-mix(in srgb, var(--accent) 88%, white);
+  border-color: transparent;
+  box-shadow: 0 6px 18px -4px var(--accent-glow), var(--shadow-2);
 }
 .btn-primary:active:not(:disabled) {
-  transform: translateY(1px) scale(0.96);
+  background: color-mix(in srgb, var(--accent) 92%, black);
 }
 .btn-spinner {
   width: 11px;
@@ -449,6 +679,14 @@ body.reduce-motion *::after {
   border: 1.6px solid color-mix(in srgb, var(--text) 22%, transparent);
   border-top-color: currentColor;
   animation: spin 0.7s linear infinite;
+}
+.btn .ico {
+  width: 13px;
+  height: 13px;
+  transition: transform var(--dur) var(--ease);
+}
+.btn:hover:not(:disabled) .ico {
+  transform: translateY(-1px) scale(1.08);
 }
 
 /* ============ 进度条 ============ */
@@ -462,21 +700,20 @@ body.reduce-motion *::after {
 }
 .progress-bar {
   flex: 1;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--bg-sunken);
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
   overflow: hidden;
 }
 .progress-fill {
   height: 100%;
   width: 0%;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent);
-  box-shadow: 0 0 12px var(--accent-glow);
+  box-shadow: 0 0 10px var(--accent-glow);
   animation: barPulse 1.6s ease-in-out infinite;
-  transition: width 0.3s var(--ease);
+  transition: width var(--dur-slow) var(--ease);
 }
-/* 进度走完的收尾：停掉呼吸、改播一次高亮（由 JS 在 status=done 时加类） */
 .progress-fill.done {
   animation: fillDone 0.7s var(--ease);
 }
@@ -491,19 +728,22 @@ body.reduce-motion *::after {
 .content {
   flex: 1;
   display: flex;
+  gap: 14px;
   min-height: 0;
-  gap: 0;
+  padding: 0 16px 14px;
 }
 .list-pane {
   flex: 1;
   min-width: 0;
   position: relative;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .list-scroll {
-  height: 100%;
+  flex: 1;
   overflow-y: auto;
-  padding: 16px 18px 20px;
+  padding: 2px 4px 12px;
   contain: paint;
 }
 .pane-empty {
@@ -524,23 +764,21 @@ body.reduce-motion *::after {
   padding: 0 28px;
   text-align: center;
 }
-/* 主题色光晕圆环：空状态的主视觉锚点（图标按语义切换，不再是通用转圈） */
 .empty-icon {
   display: grid;
   place-items: center;
-  width: 58px;
-  height: 58px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: var(--accent-soft);
   color: var(--accent);
-  box-shadow: 0 0 22px -7px var(--accent-glow), inset 0 0 0 1px var(--accent-soft);
+  box-shadow: 0 0 0 0 var(--accent-soft);
   animation: emptyPulse 3.6s ease-in-out infinite;
 }
 .empty-icon .ico {
   width: 26px;
   height: 26px;
 }
-/* 进行态：图标自转，替代外圈脉冲（脉冲与"旋转"的语义会打架） */
 .empty-icon.spin {
   animation: none;
 }
@@ -551,92 +789,79 @@ body.reduce-motion *::after {
   font-size: var(--t-8);
   line-height: 1.65;
   color: var(--text-dim);
-  max-width: 300px;
-}
-@keyframes emptyFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes emptyPulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 20px -8px var(--accent-glow), inset 0 0 0 1px var(--accent-soft);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 30px -4px var(--accent-glow), inset 0 0 0 1px var(--accent-soft);
-  }
+  max-width: 320px;
 }
 
-/* ============ 日志面板 ============ */
+/* ============ 日志面板（悬浮卡片） ============ */
 .log-pane {
-  flex: 0 0 348px;
+  flex: 0 0 340px;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.14);
   min-height: 0;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
 }
 .pane-head {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 11px 14px;
   font-size: var(--t-5);
+  font-weight: 500;
   color: var(--text-dim);
   border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
 }
 .mini-btn {
   font-family: inherit;
   font-size: var(--t-3);
-  padding: 4px 10px;
+  height: 26px;
+  padding: 0 10px;
   border-radius: var(--radius-xs);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--text-dim);
   cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+    transform 0.1s var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .mini-btn:hover {
-  background: var(--bg-card-hover);
+  background: var(--surface-3);
+  border-color: color-mix(in srgb, var(--text) 18%, transparent);
   color: var(--text);
 }
-/* 设置面板控件的"按下"反馈。
-   主窗口的按钮本来都有（.tb-btn / .btn / .item-action-btn 各自的 :active），
-   但设置面板里最常点的这几个一直没有 —— 点下去毫无回应，手感是断的。 */
 .mini-btn:active {
   transform: scale(0.95);
-}
-.preset:active {
-  transform: translateY(0) scale(0.98);
-}
-.mode-btn:active {
-  transform: scale(0.97);
 }
 .log-body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 14px 16px;
+  padding: 10px;
   contain: paint;
 }
-
-/* 日志卡片 */
+.log-body.log-flash {
+  animation: logFlash 1.3s var(--ease);
+}
 .log-card {
   display: grid;
   grid-template-columns: auto auto 1fr;
   gap: 9px;
   align-items: start;
-  padding: 8px 11px;
-  margin-bottom: 6px;
+  padding: 8px 10px;
+  margin-bottom: 5px;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--text) 3.2%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text) 5%, transparent);
-  animation: cardIn 0.22s var(--ease) both;
-  transition: background 0.15s var(--ease);
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  animation: cardIn var(--dur) var(--ease) both;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .log-card:hover {
-  background: color-mix(in srgb, var(--text) 6.2%, transparent);
+  background: var(--surface-3);
+  border-color: var(--line);
 }
 .log-time {
   font-family: var(--font-mono);
@@ -651,7 +876,7 @@ body.reduce-motion *::after {
   letter-spacing: 0.6px;
   padding: 1.5px 6px;
   border-radius: var(--radius-xs);
-  background: color-mix(in srgb, var(--text) 7%, transparent);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
   color: var(--text-dim);
   white-space: nowrap;
 }
@@ -691,109 +916,122 @@ body.reduce-motion *::after {
   color: var(--info);
 }
 
-/* ============ 分组与条目 ============ */
-/* 矢量图标 */
+/* ============ 分组卡片 ============ */
 .ico {
   display: inline-block;
   vertical-align: -2px;
   flex: 0 0 auto;
 }
-.group-icon {
-  display: inline-grid;
-  place-items: center;
-  color: var(--text-dim);
-  transition: transform 0.22s var(--ease), color 0.22s var(--ease);
-}
-.group-icon .ico {
-  width: 15px;
-  height: 15px;
-}
-/* 悬停分组时图标轻轻一挑，给出"可交互"的线索 */
-.group:hover .group-icon {
-  color: var(--accent);
-  transform: rotate(-6deg) scale(1.12);
-}
-.btn .ico {
-  width: 13px;
-  height: 13px;
-  transition: transform 0.18s var(--ease);
-}
-/* 按钮悬停时图标上浮一点（点击光环见 .btn:active） */
-.btn:hover:not(:disabled) .ico {
-  transform: translateY(-1px) scale(1.08);
-}
-
 .group {
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
   overflow: hidden;
-  animation: cardIn 0.3s var(--ease) both;
+  animation: cardIn var(--dur-slow) var(--ease) both;
+  transition: box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.group:hover {
+  box-shadow: var(--shadow-2);
 }
 .group-head {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 12px 16px;
+  padding: 11px 14px;
   border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--text) 2.2%, transparent);
+  background: var(--surface-2);
+}
+.group-icon {
+  display: inline-grid;
+  place-items: center;
+  color: var(--text-dim);
+  transition: transform var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.group-icon .ico {
+  width: 15px;
+  height: 15px;
+}
+.group:hover .group-icon {
+  color: var(--accent);
+  transform: rotate(-6deg) scale(1.1);
 }
 .group-title {
   font-size: var(--t-6);
   font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
 }
 .group-count {
   font-family: var(--font-mono);
   font-size: var(--t-3);
   color: var(--text-faint);
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
-  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
+  background: var(--surface-3);
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
 }
-/* 整组被选中时计数胶囊点亮为主题色（纯状态样式，不做动画 —— 否则每次重渲染都会重播） */
-.group:has(> .group-head input[data-role='group']:checked) .group-count {
+/* 整组选中：卡片描边点亮 + 计数胶囊变主题色 */
+.group.checked-glow {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 1px var(--accent-line), var(--shadow-2);
+}
+.group.checked-glow .group-count {
   color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.group:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.group:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.group:nth-child(4) {
+  animation-delay: 0.15s;
 }
 
+/* ============ 更新项 ============ */
 .item {
   display: flex;
   align-items: center;
   gap: 13px;
-  padding: 10px 16px;
-  border-bottom: 1px solid color-mix(in srgb, var(--text) 4%, transparent);
-  transition: background 0.14s var(--ease);
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
   position: relative;
-  /* 入场动画统一在文件后部「动画：入场更精细」一节定义（含单独的 @keyframes itemIn） */
-}
-/* 悬停时左侧 accent 指示条 */
-.item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
-  border-radius: 0 2px 2px 0;
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
-  opacity: 0;
-  transform: scaleY(0.3);
-  transform-origin: center;
-  transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
-}
-.item:hover::before {
-  opacity: 1;
-  transform: scaleY(1);
+  animation: itemIn 0.22s var(--ease) both;
+  transition: background var(--dur-fast) var(--ease);
 }
 .item:last-child {
   border-bottom: none;
 }
 .item:hover {
-  background: var(--bg-card-hover);
+  background: var(--surface-2);
+}
+/* 悬停时左侧强调条 */
+.item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  opacity: 0;
+  transform: scaleY(0.3);
+  transform-origin: center;
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.item:hover::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+.item.checked {
+  background: var(--accent-softer);
 }
 .item.checked .item-name {
   color: var(--accent);
@@ -804,10 +1042,11 @@ body.reduce-motion *::after {
 }
 .item-name {
   font-size: var(--t-7);
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color 0.15s var(--ease);
+  transition: color var(--dur-fast) var(--ease);
 }
 .item-meta {
   font-size: var(--t-3);
@@ -824,111 +1063,6 @@ body.reduce-motion *::after {
   /* 由 JS 按光标距离实时改写 font-size */
   transition: font-size 0.16s ease-out, opacity 0.16s ease-out;
 }
-
-/* 忽略操作按钮：默认隐藏，hover 时淡入 */
-.item-actions {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  opacity: 0;
-  transform: translateX(4px);
-  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
-}
-.item:hover .item-actions {
-  opacity: 1;
-  transform: translateX(0);
-}
-.item-action-btn {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--text) 6%, transparent);
-  color: var(--text-dim);
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s, transform 0.12s var(--ease);
-}
-.item-action-btn:hover {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
-  color: var(--text);
-}
-.item-action-btn.danger:hover {
-  background: rgba(248, 113, 113, 0.18);
-  color: #f87171;
-}
-.item-action-btn:active {
-  transform: scale(0.88);
-}
-.item-action-btn .ico {
-  width: 13px;
-  height: 13px;
-  transition: transform 0.16s var(--ease);
-}
-.item-action-btn:hover .ico {
-  transform: scale(1.12);
-}
-
-/* 更新失败的「查看日志」入口：常驻可见，点击滚动日志面板并高亮 */
-.item-fail {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: inherit;
-  font-size: var(--t-2);
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid rgba(248, 113, 113, 0.38);
-  background: rgba(248, 113, 113, 0.13);
-  color: var(--err);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
-    transform 0.12s var(--ease);
-}
-.item-fail:hover {
-  background: rgba(248, 113, 113, 0.22);
-  border-color: rgba(248, 113, 113, 0.6);
-}
-.item-fail:active {
-  transform: translateY(1px);
-}
-.item-fail .ico {
-  width: 11px;
-  height: 11px;
-}
-
-/* 「跳转到日志」时的高亮闪烁 */
-.log-body.log-flash {
-  animation: logFlash 1.3s var(--ease);
-}
-@keyframes logFlash {
-  0% {
-    background: var(--accent-soft);
-    box-shadow: inset 0 0 0 2px var(--accent);
-  }
-  100% {
-    background: transparent;
-    box-shadow: inset 0 0 0 2px transparent;
-  }
-}
-
-/* 分组依次入场 */
-.group:nth-child(2) {
-  animation-delay: 0.05s;
-}
-.group:nth-child(3) {
-  animation-delay: 0.1s;
-}
-.group:nth-child(4) {
-  animation-delay: 0.15s;
-}
-/* 版本号用 dim 而非 faint：距离感应会在其基础上再乘一个 opacity，
-   用 faint(0.44) 叠上 0.7 后整体只剩 ~0.3，暗到几乎读不出来 */
 .v-cur {
   color: var(--text-dim);
 }
@@ -943,10 +1077,129 @@ body.reduce-motion *::after {
   font-family: var(--font-cn);
   font-size: var(--t-1);
   padding: 1.5px 7px;
-  border-radius: var(--radius-xs);
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(251, 191, 36, 0.32);
   color: var(--warn);
   background: rgba(251, 191, 36, 0.1);
+}
+
+/* 忽略操作按钮：默认隐藏，hover 淡入 */
+.item-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transform: translateX(4px);
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.item:hover .item-actions {
+  opacity: 1;
+  transform: translateX(0);
+}
+.item-action-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: var(--surface-3);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), transform 0.1s var(--ease),
+    border-color var(--dur-fast);
+}
+.item-action-btn:hover {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.item-action-btn.danger:hover {
+  background: rgba(248, 113, 113, 0.18);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: var(--err);
+}
+.item-action-btn:active {
+  transform: scale(0.9);
+}
+.item-action-btn .ico {
+  width: 13px;
+  height: 13px;
+  transition: transform 0.16s var(--ease);
+}
+.item-action-btn:hover .ico {
+  transform: scale(1.1);
+}
+
+/* 更新失败入口 */
+.item-fail {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: inherit;
+  font-size: var(--t-2);
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.13);
+  color: var(--err);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    transform 0.1s var(--ease);
+}
+.item-fail:hover {
+  background: rgba(248, 113, 113, 0.22);
+  border-color: rgba(248, 113, 113, 0.6);
+}
+.item-fail:active {
+  transform: translateY(1px);
+}
+.item-fail .ico {
+  width: 11px;
+  height: 11px;
+}
+
+/* 应用图标 */
+.item-icon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+.item:hover .item-icon {
+  transform: scale(1.06) rotate(-2deg);
+  border-color: var(--accent-line);
+  background: var(--surface-3);
+}
+.item-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.item-icon-fallback {
+  color: var(--text-dim);
+}
+.item-icon-fallback .ico {
+  width: 17px;
+  height: 17px;
+}
+
+/* 入场动画抑制（非新一次扫描的渲染） */
+.list-scroll.no-anim .group,
+.list-scroll.no-anim .item {
+  animation: none !important;
 }
 
 /* ============ 复选框 ============ */
@@ -954,9 +1207,9 @@ body.reduce-motion *::after {
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 17px;
-  height: 17px;
-  flex: 0 0 17px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
   cursor: pointer;
 }
 .cb input {
@@ -968,49 +1221,49 @@ body.reduce-motion *::after {
   cursor: pointer;
 }
 .cb .box {
-  width: 17px;
-  height: 17px;
-  border-radius: calc(var(--radius-xs) + 1px);
+  width: 18px;
+  height: 18px;
+  border-radius: calc(var(--radius-xs) * 0.9);
   border: 1px solid var(--line-strong);
-  background: rgba(0, 0, 0, 0.2);
-  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
-    transform 0.12s var(--ease);
+  background: var(--surface-3);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    transform 0.1s var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.cb:hover .box {
+  border-color: var(--accent-line);
 }
 .cb input:checked + .box {
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: 0 0 9px var(--accent-glow);
+  box-shadow: 0 2px 8px -2px var(--accent-glow);
 }
 .cb input:checked + .box::after {
   content: '';
   position: absolute;
-  left: 5.5px;
-  top: 2.5px;
+  left: 6px;
+  top: 3px;
   width: 4px;
   height: 8px;
-  border: solid #0d1311;
-  border-width: 0 1.6px 1.6px 0;
+  border: solid var(--on-accent);
+  border-width: 0 1.8px 1.8px 0;
   transform: rotate(45deg);
 }
 .cb input:indeterminate + .box {
-  background: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: var(--accent-soft);
   border-color: var(--accent);
 }
-/* 半选态画一道横杠（此前只变底色，没有可辨识的标记） */
 .cb input:indeterminate + .box::after {
   content: '';
   position: absolute;
   left: 4px;
-  top: 7.6px;
-  width: 9px;
-  height: 1.8px;
+  top: 8px;
+  width: 10px;
+  height: 2px;
   border: none;
   border-radius: 2px;
-  background: #0d1311;
+  background: var(--accent);
   transform: none;
 }
-/* 用户点选时的一次性反馈：方框微弹 + 勾/横杠弹入。
-   由 JS 加 .box-pop 触发 —— 直接绑在 :checked 上会在每次列表重渲染时通盘重播。 */
 .cb.box-pop .box {
   animation: boxPop 0.26s var(--ease);
 }
@@ -1023,7 +1276,7 @@ body.reduce-motion *::after {
 
 /* ============ 状态栏 ============ */
 .statusbar {
-  flex: 0 0 30px;
+  flex: 0 0 34px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1040,67 +1293,39 @@ body.reduce-motion *::after {
 .settings-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 28px 34px;
+  padding: 18px 20px 26px;
 }
 .settings-section {
-  margin-bottom: 28px;
-  animation: cardIn 0.32s var(--ease) both;
+  margin-bottom: 14px;
+  padding: 18px 20px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  animation: cardIn var(--dur-slow) var(--ease) both;
+  transition: box-shadow var(--dur) var(--ease);
+}
+.settings-section:hover {
+  box-shadow: var(--shadow-2);
 }
 .settings-section h2 {
-  margin: 0 0 13px;
+  margin: 0 0 12px;
   font-size: var(--t-3);
   font-weight: 600;
-  letter-spacing: 1.4px;
-  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
 }
-
-.preset-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
-  gap: 11px;
-}
-.preset {
-  padding: 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: var(--bg-card);
-  cursor: pointer;
-  text-align: left;
-  color: inherit;
-  font-family: inherit;
-  transition: transform 0.16s var(--ease), background 0.16s var(--ease),
-    border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
-}
-.preset:hover {
-  transform: translateY(-2px);
-  background: var(--bg-card-hover);
-  border-color: var(--line-strong);
-}
-.preset.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent) inset, 0 8px 20px rgba(0, 0, 0, 0.2);
-}
-.preset-swatch {
-  height: 30px;
-  border-radius: var(--radius-sm);
-  margin-bottom: 9px;
-  border: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
-}
-.preset-name {
-  font-size: var(--t-6);
-}
-
 .field-row {
   display: flex;
   align-items: center;
   gap: 13px;
-  padding: 10px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--text) 4.5%, transparent);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.field-row:last-child {
+  border-bottom: none;
 }
 .field-row label {
-  /* 固定列宽是为了让各行的控件竖向对齐；但英文标签明显更长
-     （如 "Auto-check on startup"），88px 会挤成两三行 → 加宽一点，
-     并给 line-height 让换行时行高不至于贴在一起。 */
   flex: 0 0 104px;
   font-size: var(--t-6);
   line-height: 1.35;
@@ -1114,16 +1339,70 @@ body.reduce-motion *::after {
 .field-hint {
   margin: 10px 0 0;
   font-size: var(--t-4);
-  line-height: 1.6;
+  line-height: 1.65;
   color: var(--text-faint);
 }
 .mono {
   font-family: var(--font-mono);
 }
+.field-row-stack {
+  flex-direction: column;
+  align-items: stretch !important;
+  padding: 12px 0;
+}
+.field-row-stack > label {
+  flex: 0 0 auto !important;
+}
+.pos-hint {
+  margin-top: 6px !important;
+}
 
+/* 预设 */
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 10px;
+}
+.preset {
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.preset:hover {
+  transform: translateY(-2px);
+  background: var(--surface-3);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-2);
+}
+.preset:active {
+  transform: translateY(0) scale(0.98);
+}
+.preset.active {
+  border-color: var(--accent);
+  background: var(--accent-softer);
+  box-shadow: 0 0 0 1px var(--accent) inset, var(--shadow-2);
+}
+.preset-swatch {
+  height: 32px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+}
+.preset-name {
+  font-size: var(--t-6);
+}
+
+/* 色块 / 滑块 / 开关 / 下拉 */
 input[type='color'] {
-  width: 46px;
-  height: 28px;
+  width: 48px;
+  height: 30px;
   padding: 0;
   border: none;
   background: none;
@@ -1138,16 +1417,41 @@ input[type='color']::-webkit-color-swatch {
 }
 input[type='range'] {
   flex: 1;
-  accent-color: var(--accent);
+  min-width: 0;
+  height: 20px;
+  appearance: none;
+  background: transparent;
   cursor: pointer;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+}
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface-1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transition: transform var(--dur-fast) var(--ease);
+}
+input[type='range']:hover::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+input[type='range']:active::-webkit-slider-thumb {
+  transform: scale(0.96);
 }
 
 .switch {
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 42px;
-  height: 22px;
+  width: 44px;
+  height: 24px;
   cursor: pointer;
 }
 .switch input {
@@ -1160,373 +1464,182 @@ input[type='range'] {
 }
 .switch-track {
   position: relative;
-  width: 42px;
-  height: 22px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text) 9%, transparent);
+  width: 44px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
   border: 1px solid var(--line-strong);
-  transition: background 0.18s var(--ease), border-color 0.18s var(--ease);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 .switch-thumb {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: var(--text-dim);
-  transition: transform 0.18s var(--ease), background 0.18s var(--ease);
+  background: var(--text-faint);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform var(--dur) var(--ease-spring), background var(--dur) var(--ease);
 }
 .switch input:checked + .switch-track {
-  background: var(--accent-soft);
+  background: var(--accent);
   border-color: var(--accent);
 }
 .switch input:checked + .switch-track .switch-thumb {
   transform: translateX(20px);
-  background: var(--accent);
+  background: var(--on-accent);
+}
+
+.select-input {
+  font-family: inherit;
+  font-size: var(--t-6);
+  height: 32px;
+  padding: 0 28px 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background-color: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5l3 3 3-3' fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+.select-input:hover {
+  border-color: var(--accent-line);
+  background-color: var(--surface-3);
+}
+.select-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.select-input option {
+  background: var(--surface-1);
+  color: var(--text);
 }
 
 .settings-actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-  padding-top: 6px;
+  padding-top: 8px;
 }
 
-/* ============ 滚动条 ============ */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-/* 拇指默认隐形：不滚动时界面保持干净，鼠标进入滚动区才淡入 */
-::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 999px;
-  transition: background 0.22s var(--ease);
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-.list-scroll:hover::-webkit-scrollbar-thumb,
-.log-body:hover::-webkit-scrollbar-thumb,
-.settings-scroll:hover::-webkit-scrollbar-thumb,
-.about-scroll:hover::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
-  background-clip: padding-box;
-}
-/* 指针压到拇指上时再亮一档（同特异性，靠书写顺序覆盖上一条） */
-.list-scroll:hover::-webkit-scrollbar-thumb:hover,
-.log-body:hover::-webkit-scrollbar-thumb:hover,
-.settings-scroll:hover::-webkit-scrollbar-thumb:hover,
-.about-scroll:hover::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-  background-clip: padding-box;
-}
-
-/* ============ 键盘焦点环 ============ */
-/* 只在键盘 Tab 时出现（:focus-visible 会自动排除鼠标点击） */
-.btn:focus-visible,
-.mini-btn:focus-visible,
-.tb-btn:focus-visible,
-.mode-btn:focus-visible,
-.preset:focus-visible,
-.item-action-btn:focus-visible,
-.select-input:focus-visible,
-.pos-mini:focus-visible,
-input[type='range']:focus-visible,
-input[type='color']:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-/* 自绘控件：真 input 是隐藏的，焦点环要挂到可见的那层上 */
-.cb input:focus-visible + .box,
-.switch input:focus-visible + .switch-track {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* 半透明毛玻璃上提升文字边缘清晰度 */
-/* ============ 文字渲染 ============ */
-/* 历史遗留：这里以前是十来个元素各自写死一层深色投影（浅色模式还得再点名覆盖一遍
-   描边）。现在统一收敛到「容器设一次 + 靠继承」，渲染方式与强度都可在设置里调：
-   - 方式由 JS 写到 <html data-text-render>（auto 会被解析成 outline / shadow）
-   - 强度由 JS 算进 --text-outline / --text-shadow（强度 50 = 原来的观感）
-   好处：不会再出现"有的字有渲染、有的没有"，也不用维护两份元素清单。 */
-.glass-root,
-.toast-root {
-  text-shadow: var(--text-render, none);
-}
-html[data-text-render='none'] {
-  --text-render: none;
-}
-html[data-text-render='outline'] {
-  --text-render: var(--text-outline);
-}
-html[data-text-render='shadow'] {
-  --text-render: var(--text-shadow);
-}
-html[data-text-render='both'] {
-  --text-render: var(--text-outline), var(--text-shadow);
-}
-/* 关闭渲染时，通知卡片的多层阴影也一并关掉，否则"无"就名不副实 */
-html[data-text-render='none'] .toast-title,
-html[data-text-render='none'] .toast-body,
-html[data-text-render='none'] .toast-time {
-  text-shadow: none;
-}
-
-/* ============ 应用图标（列表） ============ */
-.item-icon {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border-radius: calc(var(--radius-base) * 0.36);
-  background: var(--bg-card);
+/* 模式选择器（分段控件） */
+.mode-selector {
+  display: flex;
+  gap: 3px;
+  background: var(--surface-2);
+  padding: 3px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  transition: transform 0.18s var(--ease), border-color 0.18s var(--ease);
 }
-.item:hover .item-icon {
-  transform: scale(1.06) rotate(-2deg);
-  border-color: var(--line-strong);
-}
-.item-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  /* 透明 PNG 在深色背景上太暗，给个轻微高亮 */
-  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--text) 6%, transparent));
-  pointer-events: none;
-}
-.item-icon-fallback {
-  color: var(--text-dim);
-}
-/* 回退图标尺寸：与旧版 JS 里给 svg 写的 width/height=17 保持一致 */
-.item-icon-fallback .ico {
-  width: 17px;
-  height: 17px;
-}
-
-/* ============ 通知 Toast 窗口 ============ */
-.toast-root {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  /* 上下 12 / 左右 10：与 notify.rs 的 NOTIFY_W 及 notify.ts 的高度测算保持一致，
-     保证 340px 宽的 toast 在 360px 宽的窗口里留出等宽边距 */
-  padding: 12px 10px;
-  pointer-events: none;
-  /* 由 .dir-* 决定列方向；由 .align-* 决定水平对齐 */
-}
-/* 入场/退场位移跟随通知位置。
-   原来入场固定 translateY(+16px)、退场固定 translateX(+24px) —— 于是放在
-   "左上"的通知会从下方往上冒、放在"左下"的会向右横着飘走，方向全是反的。
-   现在由位置推出位移量：每条通知都从它自己那一角进出。 */
-.toast-root {
-  --toast-in-x: 0px;
-  --toast-in-y: 16px;
-}
-.toast-root.dir-top-down {
-  flex-direction: column;
-  justify-content: flex-start;
-  --toast-in-y: -16px;
-}
-.toast-root.dir-bottom-up {
-  flex-direction: column-reverse;
-  justify-content: flex-end;
-  --toast-in-y: 16px;
-}
-.toast-root.align-left {
-  align-items: flex-start;
-  --toast-in-x: -12px;
-}
-.toast-root.align-right {
-  align-items: flex-end;
-  --toast-in-x: 12px;
-}
-.toast-root.align-center {
-  align-items: center;
-  --toast-in-x: 0px;
-}
-
-/* ---------- 叠加模式（扑克牌式） ---------- */
-/* 卡片脱离列表、彼此重叠：最新的贴在定位边，旧的往另一侧让开一点，
-   于是每条旧卡都只露出上边缘的一条 —— 既看得出"还有几条"，又能看到下面的内容。
-   深度由 JS 写在 --depth 上（0 = 最新、在最上层）。 */
-.toast-root.stacked {
-  position: relative;
-}
-.toast-root.stacked .toast {
-  position: absolute;
-  left: 0;
-  right: 0;
-  z-index: calc(50 - var(--depth, 0));
-  opacity: calc(1 - var(--depth, 0) * 0.12);
-  transform: rotate(var(--tilt, 0deg)) scale(calc(1 - var(--depth, 0) * 0.022));
-}
-/* 纵向堆叠方向跟随通知位置：底部的往上叠、顶部的往下叠 */
-.toast-root.stacked.dir-bottom-up .toast {
-  bottom: calc(var(--depth, 0) * var(--stack-peek, 14px));
-}
-.toast-root.stacked.dir-top-down .toast {
-  top: calc(var(--depth, 0) * var(--stack-peek, 14px));
-}
-/* ⚠️ 旋转按 DOM 序定死，**不要**写成跟着 --depth 走 ——
-   否则每来一条新通知，已有卡片会集体重新倾斜，整叠都在晃。 */
-.toast-root.stacked .toast:nth-child(odd) {
-  --tilt: -1.5deg;
-}
-.toast-root.stacked .toast:nth-child(even) {
-  --tilt: 1.5deg;
-}
-
-.toast {
-  pointer-events: auto;
-  display: flex;
-  align-items: stretch;
-  width: 340px;
-  min-height: 84px;
-  border-radius: var(--radius);
-  background: var(--bg-card);
-  border: 1px solid var(--line-strong);
-  box-shadow: var(--toast-shadow);
-  overflow: hidden;
-  cursor: pointer;
-  animation: toastIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
-  transition: transform 0.2s var(--ease), opacity 0.2s var(--ease), box-shadow 0.2s var(--ease);
-  font-family: var(--font-cn), var(--font-en);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-/* ⚠️ 这里**绝对不能**再写 transform —— `.toast:hover`（0,2,0）会压过 `.toast`（0,1,0），
-   而指针只要在卡片上就永远是 hover 状态，于是拖拽位移被整段覆盖、表现为"怎么都拖不动"。
-   悬停的抬升改为只提供一个变量，由基础规则的 transform 统一合成。 */
-.toast:hover {
-  --toast-hover-y: -2px;
-  box-shadow: var(--toast-shadow-hover);
-}
-.toast.toast-out {
-  animation: toastOut 0.28s var(--ease) both;
-}
-
-@keyframes toastIn {
-  from {
-    opacity: 0;
-    /* 位移量由 .toast-root 上的位置类给出（见上） */
-    transform: translate(var(--toast-in-x, 0px), var(--toast-in-y, 16px)) scale(0.95);
-  }
-  to {
-    opacity: var(--notif-opacity, 1);
-    transform: none;
-  }
-}
-@keyframes toastOut {
-  from {
-    opacity: var(--notif-opacity, 1);
-    transform: none;
-  }
-  to {
-    opacity: 0;
-    /* 原路退回：进来时怎么来的，出去就怎么走 */
-    transform: translate(var(--toast-in-x, 0px), var(--toast-in-y, 16px)) scale(0.96);
-  }
-}
-
-/* 通知卡片的 transform：悬停抬升在这里合成。
-   ⚠️ 不要再让 hover 自己写 transform —— 指针在卡片上时永远命中 hover（0,2,0），
-   会盖掉基础规则（0,1,0）。当初那样写就把拖拽位移整个覆盖掉了。 */
-.toast {
-  transform: translateY(var(--toast-hover-y, 0px));
-  transition: transform 0.2s var(--ease), opacity 0.2s var(--ease);
-}
-
-.toast-stripe {
-  width: 3px;
-  flex: 0 0 3px;
-  border-radius: var(--radius) 0 0 var(--radius);
-  box-shadow: 0 0 12px currentColor;
-}
-.toast-main {
+.mode-btn {
   flex: 1;
+  height: 26px;
+  padding: 0 10px;
+  font-size: var(--t-5);
+  font-family: var(--font-cn), var(--font-en);
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+    transform 0.1s var(--ease);
+  white-space: nowrap;
+}
+.mode-btn:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+.mode-btn:active {
+  transform: scale(0.97);
+}
+.mode-btn.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+/* 通知模式卡片 */
+.not-mode-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.not-mode-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+.not-mode-card:hover {
+  background: var(--surface-3);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-1);
+}
+.not-mode-card input[type='radio'] {
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.not-mode-card:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-softer);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.not-mode-card-body {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 8px 12px 9px 11px;
-  min-width: 0;
-  /* 这里原本有一层黑→透明的渐变遮罩，是"黑背景"观感的另一半来源，
-     且渐变本身就违背纯平要求。可读性已由标题/正文的 text-shadow 保证。 */
+  gap: 3px;
 }
-.toast-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.toast-title {
-  font-size: var(--t-8);
+.not-mode-card-body strong {
+  font-size: var(--t-6);
   font-weight: 600;
   color: var(--text);
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.01em;
-  /* 原来这里是 4 层黑色发光（0.9/0.7/0.5/0.3），观感是"WordArt 式外发光"，
-     既丑又和窗口内的文字渲染不一致。现在统一走 --text-render ——
-     .toast-root 已经设好，这里不声明就会继承（跟主界面同一套、强度也可调）。 */
 }
-.toast-time {
-  font-family: var(--font-mono);
+.not-mode-card-body small {
   font-size: var(--t-3);
   color: var(--text-faint);
-  flex: 0 0 auto;
-  /* 同上：跟随 --text-render，不再写死发光 */
+  line-height: 1.55;
 }
-/* .toast-close 的样式已随关闭按钮一并移除：整张卡片就是关闭热区（见 notify.ts）。
-   留着只会是永远匹配不到元素的死代码。 */
-.toast-body {
-  font-size: var(--t-6);
-  line-height: 1.6;
-  color: var(--text-dim);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.not-app-only {
+  max-height: 0;
   overflow: hidden;
-  word-break: break-all;
-  /* 同上：跟随 --text-render，不再写死发光 */
+  opacity: 0;
+  transition: max-height var(--dur-slow) var(--ease), opacity var(--dur) var(--ease),
+    margin-top var(--dur) var(--ease);
+}
+.not-app-only.active {
+  max-height: 600px;
+  opacity: 1;
+  margin-top: 6px;
 }
 
-/* 通知位置指示 — 顶部时往下推进、底部时往上推进；
-   align-* 让每条通知按用户偏好贴在角上 */
-.toast-root.dir-top-down .toast {
-  margin-top: 0;
-}
-.toast-root.dir-bottom-up .toast {
-  margin-bottom: 0;
-}
-
-/* ============ 设置面板中的"通知位置"迷你绘制窗口 ============ */
+/* 通知位置迷你示意图 */
 .pos-mini {
   position: relative;
   width: 240px;
   height: 150px;
   margin: 8px 0 4px;
-  border-radius: var(--radius-sm);
-  /* 原本这里叠了一层「顶部径向泛光」，属于光泽效果、违背纯平约定，去掉 */
-  background: var(--bg-sunken);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
   border: 1px solid var(--line);
   overflow: hidden;
   cursor: crosshair;
 }
-/* 外框与十字准线都用主题变量，否则浅色模式下白线画在白底上 = 看不见 */
 .pos-mini-frame {
   position: absolute;
   inset: 8px;
@@ -1553,14 +1666,14 @@ html[data-text-render='none'] .toast-time {
 }
 .pos-dot {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   border: 2px solid var(--accent);
-  background: var(--bg-root);
+  background: var(--surface-1);
   box-shadow: 0 0 10px var(--accent-glow);
   transform: translate(-50%, -50%);
-  transition: left 0.2s var(--ease), top 0.2s var(--ease);
+  transition: left var(--dur) var(--ease), top var(--dur) var(--ease);
   pointer-events: none;
 }
 .pos-mini[data-pos^='top-'] .pos-dot {
@@ -1579,110 +1692,7 @@ html[data-text-render='none'] .toast-time {
   left: 50%;
 }
 
-/* ============ 动画：入场更精细 ============ */
-@keyframes itemIn {
-  from {
-    opacity: 0;
-    transform: translateX(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.item {
-  animation: itemIn 0.22s var(--ease) both;
-}
-/* 交错延迟由 JS 内联设置（capped stagger），这里不再用 :nth-child 硬编码 */
-
-/* 非"新一次扫描完成"的渲染（设置变更 / 忽略 / 更新后移除 / 图标回填）抑制整表入场动画，
-   避免每次交互都重播一遍造成闪烁与无谓重排。 */
-.list-scroll.no-anim .group,
-.list-scroll.no-anim .item {
-  animation: none !important;
-}
-
-/* 选中态在 group 头部扩散一道光 */
-.group.checked-glow {
-  box-shadow: 0 0 0 1px var(--accent), 0 0 24px var(--accent-glow);
-  transition: box-shadow 0.25s var(--ease);
-}
-
-/* ============ 通知偏好：模式卡片 ============ */
-.not-mode-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-.not-mode-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: var(--bg-card);
-  cursor: pointer;
-  transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
-}
-.not-mode-card:hover {
-  background: var(--bg-card-hover);
-  border-color: var(--line-strong);
-}
-.not-mode-card input[type='radio'] {
-  margin: 2px 0 0;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-.not-mode-card:has(input:checked) {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent) inset;
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-}
-.not-mode-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.not-mode-card-body strong {
-  font-size: var(--t-6);
-  font-weight: 600;
-  color: var(--text);
-}
-.not-mode-card-body small {
-  font-size: var(--t-3);
-  color: var(--text-faint);
-  line-height: 1.55;
-}
-
-/* "应用内"专有控件显隐：默认隐藏，模式切到 app 时整组淡入 */
-.not-app-only {
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: max-height 0.32s var(--ease), opacity 0.24s var(--ease),
-    margin-top 0.24s var(--ease);
-}
-.not-app-only.active {
-  max-height: 600px;
-  opacity: 1;
-  margin-top: 6px;
-}
-
-.field-row-stack {
-  flex-direction: column;
-  align-items: stretch !important;
-  padding: 14px 0;
-}
-.field-row-stack > label {
-  flex: 0 0 auto !important;
-}
-.pos-hint {
-  margin-top: 6px !important;
-}
-
-/* ============ 忽略列表管理 ============ */
+/* 忽略列表 */
 .ignore-list {
   display: flex;
   flex-direction: column;
@@ -1692,10 +1702,10 @@ html[data-text-render='none'] .toast-time {
 .ignore-empty {
   font-size: var(--t-5);
   color: var(--text-faint);
-  padding: 12px;
+  padding: 14px;
   text-align: center;
-  border: 1px dashed var(--line);
-  border-radius: var(--radius);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
 }
 .ignore-row {
   display: flex;
@@ -1703,9 +1713,14 @@ html[data-text-render='none'] .toast-time {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  background: var(--bg-card);
+  background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.ignore-row:hover {
+  background: var(--surface-3);
+  border-color: var(--line-strong);
 }
 .ignore-info {
   display: flex;
@@ -1729,129 +1744,37 @@ html[data-text-render='none'] .toast-time {
   flex: 0 0 auto;
 }
 
-/* ============ 主题模式选择器 ============ */
-.mode-selector {
-  display: flex;
-  gap: 4px;
-  background: var(--bg-sunken);
-  padding: 3px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
+/* 字体预览 */
+.font-pane {
+  padding-left: 2px;
 }
-.mode-btn {
+.font-select {
   flex: 1;
-  padding: 5px 10px;
-  font-size: var(--t-5);
-  font-family: var(--font-cn), var(--font-en);
-  color: var(--text-dim);
-  background: transparent;
-  border: none;
-  border-radius: calc(var(--radius-sm) - 2px);
-  cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
-  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
 }
-.mode-btn:hover {
+.font-preview {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.fp-title {
+  font-family: var(--font-en);
+  font-size: var(--t-1);
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  margin-bottom: 7px;
+}
+.fp-body {
+  font-size: var(--t-8);
+  line-height: 1.75;
   color: var(--text);
-  background: var(--bg-card-hover);
-}
-.mode-btn.active {
-  color: var(--accent);
-  background: var(--accent-soft);
-  font-weight: 600;
+  word-break: break-word;
 }
 
-/* ============ 浅色模式适配 ============ */
-[data-theme='light'] {
-  --toast-shadow: 0 10px 26px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
-  --toast-shadow-hover: 0 14px 34px rgba(0, 0, 0, 0.18), 0 4px 10px rgba(0, 0, 0, 0.1);
-  /* 浅色底：接近实心白，保证卡片在任何桌面内容上都立得住 */
-  --toast-base: rgba(250, 251, 253, 0.94);
-  /* 文字渲染（描边/投影/强度）已挪到上方统一的「文字渲染」一节，
-     由 <html data-text-render> + JS 算出的两个变量驱动，这里不再逐个元素覆盖。 */
-}
-[data-theme='light'] .item-action-btn {
-  background: rgba(0, 0, 0, 0.04);
-}
-[data-theme='light'] .item-action-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
-}
-[data-theme='light'] .item-action-btn.danger:hover {
-  background: rgba(248, 113, 113, 0.15);
-  color: var(--err);
-}
-/* ⚠️ 这里原本写的是 `.pos-mini .screen` / `.pos-mini .dot` —— 这两个类名根本不存在
-   （真实类名是 .pos-mini-frame / .pos-dot），于是浅色模式下这个"通知位置示意图"
-   的样式整段失效：白色虚线框、白色十字线画在浅底上全看不见。
-   外框/十字线已改成主题变量（见上方基础规则），这里只保留圆点的浅色处理。 */
-[data-theme='light'] .pos-dot {
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
-}
-[data-theme='light'] .progress-bar {
-  background: rgba(0, 0, 0, 0.08);
-}
-/* 浅色模式滚动条：基础规则用的是**白色**拇指，在浅底上几乎看不见。
-   ⚠️ 这里必须列出真实容器类 —— 之前误写成 `.scrollbar`（这个类从未被任何元素使用），
-   等于浅色模式压根没适配过滚动条，肉眼只会觉得"滚动条时有时无"。 */
-[data-theme='light'] .list-scroll:hover::-webkit-scrollbar-thumb,
-[data-theme='light'] .log-body:hover::-webkit-scrollbar-thumb,
-[data-theme='light'] .settings-scroll:hover::-webkit-scrollbar-thumb,
-[data-theme='light'] .about-scroll:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  background-clip: padding-box;
-}
-[data-theme='light'] .list-scroll:hover::-webkit-scrollbar-thumb:hover,
-[data-theme='light'] .log-body:hover::-webkit-scrollbar-thumb:hover,
-[data-theme='light'] .settings-scroll:hover::-webkit-scrollbar-thumb:hover,
-[data-theme='light'] .about-scroll:hover::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
-  background-clip: padding-box;
-}
-/* 深色模式下 .toast-main 本来就没有底色（见上方注释：渐变违背纯平要求）。
-   浅色这里原本补了个 90° 白色渐变蒙层，属于同一类"渐变" —— 改成纯平的一层薄白。 */
-[data-theme='light'] .toast-main {
-  background: rgba(255, 255, 255, 0.22);
-}
-/* 通知卡片默认那套是深色模式的多层黑色泛光；浅色卡片是「浅底深字」，
-   照搬会把字形糊开 —— 浅色下改为跟随渲染设置（auto 即描边）。 */
-[data-theme='light'] .toast-title,
-[data-theme='light'] .toast-body,
-[data-theme='light'] .toast-time {
-  text-shadow: var(--text-render, none);
-}
-
-/* ============ 语言选择下拉框 ============ */
-.select-input {
-  font-family: inherit;
-  font-size: var(--t-6);
-  padding: 6px 28px 6px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line-strong);
-  background: var(--bg-card);
-  color: var(--text);
-  cursor: pointer;
-  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5l3 3 3-3' fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-}
-.select-input:hover {
-  border-color: var(--accent);
-  background-color: var(--bg-card-hover);
-}
-.select-input:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-.select-input option {
-  background: var(--bg-root);
-  color: var(--text);
-}
-
-/* ============ 设置面板 - 关于行 ============ */
+/* 设置 - 关于行 */
 .about-row {
   display: flex;
   align-items: center;
@@ -1883,81 +1806,42 @@ html[data-text-render='none'] .toast-time {
   text-overflow: ellipsis;
 }
 
-/* ============ 字体设置面板 ============ */
-.font-pane {
-  padding-left: 2px;
-}
-/* 字体下拉里可能有几百个选项，收窄一点并支持横向滚动 */
-.font-select {
-  flex: 1;
-  min-width: 0;
-  max-width: 100%;
-}
-.font-preview {
-  margin-top: 12px;
-  padding: 13px 15px;
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--line-strong);
-  background: var(--bg-sunken);
-}
-.fp-title {
-  font-family: var(--font-en);
-  font-size: var(--t-1);
-  letter-spacing: 1.2px;
-  color: var(--text-faint);
-  margin-bottom: 7px;
-}
-.fp-body {
-  font-size: var(--t-8);
-  line-height: 1.75;
-  color: var(--text);
-  word-break: break-word;
-}
-
-/* ============ 关于窗口 ============ */
-.about-root {
-  background: var(--bg-root);
-}
+/* ============ 关于视图 ============ */
 .about-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 28px 20px;
+  padding: 16px 18px 18px;
 }
-
-/* 顶部 Hero 区域 */
 .about-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 8px 0 20px;
-  animation: aboutHeroIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@keyframes aboutHeroIn {
-  from { opacity: 0; transform: translateY(-12px); }
-  to { opacity: 1; transform: none; }
+  padding: 24px 18px;
+  margin-bottom: 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-1);
+  animation: aboutHeroIn 0.5s var(--ease) both;
 }
 .about-logo {
   width: 72px;
   height: 72px;
   display: grid;
   place-items: center;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border: 1px solid var(--accent-line);
   margin-bottom: 14px;
-  box-shadow: 0 0 24px var(--accent-glow);
+  box-shadow: 0 0 0 0 var(--accent-soft);
   animation: logoPulse 3s ease-in-out infinite;
-}
-@keyframes logoPulse {
-  0%, 100% { box-shadow: 0 0 20px var(--accent-glow); }
-  50% { box-shadow: 0 0 32px var(--accent-glow); }
 }
 .about-app-name {
   font-size: var(--t-9);
   font-weight: 700;
   color: var(--text);
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   letter-spacing: 0.02em;
 }
 .about-version-badge {
@@ -1966,10 +1850,10 @@ html[data-text-render='none'] .toast-time {
   gap: 6px;
   font-size: var(--t-5);
   color: var(--text-dim);
-  background: var(--bg-card);
+  background: var(--surface-2);
   border: 1px solid var(--line);
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .about-version-badge .mono {
   color: var(--accent);
@@ -1981,15 +1865,15 @@ html[data-text-render='none'] .toast-time {
   gap: 6px;
   font-size: var(--t-4);
   color: var(--text-dim);
-  background: var(--bg-card);
+  background: var(--surface-2);
   border: 1px solid var(--line);
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   margin-top: 8px;
 }
 .about-arch-badge svg {
   color: var(--accent);
-  opacity: 0.8;
+  opacity: 0.85;
 }
 .about-arch-badge .mono {
   color: var(--text);
@@ -1998,41 +1882,41 @@ html[data-text-render='none'] .toast-time {
 .arch-sep {
   color: var(--text-faint);
 }
-
-/* 描述 */
 .about-description {
   font-size: var(--t-7);
   line-height: 1.7;
   color: var(--text-dim);
   text-align: center;
-  margin: 0 0 24px;
-  padding: 0 8px;
+  margin: 0 0 14px;
+  padding: 0 10px;
 }
-
-/* Section */
 .about-section {
-  margin-bottom: 22px;
-  animation: aboutSectionIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  margin-bottom: 12px;
+  padding: 16px 18px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  animation: aboutSectionIn 0.4s var(--ease) both;
 }
-.about-section:nth-of-type(1) { animation-delay: 0.08s; }
-.about-section:nth-of-type(2) { animation-delay: 0.16s; }
-.about-section:nth-of-type(3) { animation-delay: 0.24s; }
-@keyframes aboutSectionIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
+.about-section:nth-of-type(1) {
+  animation-delay: 0.08s;
+}
+.about-section:nth-of-type(2) {
+  animation-delay: 0.16s;
+}
+.about-section:nth-of-type(3) {
+  animation-delay: 0.24s;
 }
 .about-section h3 {
-  font-size: var(--t-5);
+  font-size: var(--t-3);
   font-weight: 600;
   color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   margin: 0 0 10px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--line);
 }
-
-/* 功能列表 */
 .about-features {
   list-style: none;
   margin: 0;
@@ -2056,8 +1940,6 @@ html[data-text-render='none'] .toast-time {
   box-shadow: 0 0 6px var(--accent-glow);
   flex: 0 0 auto;
 }
-
-/* 链接 */
 .about-links {
   display: flex;
   flex-direction: column;
@@ -2067,22 +1949,24 @@ html[data-text-render='none'] .toast-time {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
+  padding: 11px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
   border: 1px solid var(--line);
   color: var(--text);
   text-decoration: none;
   font-size: var(--t-7);
-  transition: background 0.15s var(--ease), border-color 0.15s var(--ease), transform 0.12s var(--ease);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 .about-link:hover {
-  background: var(--bg-card-hover);
-  border-color: var(--accent);
+  background: var(--surface-3);
+  border-color: var(--accent-line);
   transform: translateX(2px);
+  box-shadow: var(--shadow-1);
 }
 .about-link:active {
-  transform: translateX(2px) scale(0.98);
+  transform: translateX(2px) scale(0.99);
 }
 .about-link svg:first-child {
   color: var(--accent);
@@ -2095,8 +1979,6 @@ html[data-text-render='none'] .toast-time {
   color: var(--text-faint);
   flex: 0 0 auto;
 }
-
-/* 检查更新 */
 .about-update {
   display: flex;
   align-items: center;
@@ -2106,30 +1988,222 @@ html[data-text-render='none'] .toast-time {
 .about-update-status {
   font-size: var(--t-6);
   padding: 6px 12px;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 .about-update-status.checking {
   color: var(--info);
-  background: rgba(96, 165, 250, 0.1);
+  background: rgba(96, 165, 250, 0.12);
 }
 .about-update-status.ok {
   color: var(--ok);
-  background: rgba(74, 222, 128, 0.1);
+  background: rgba(74, 222, 128, 0.12);
 }
 .about-update-status.new {
   color: var(--warn);
-  background: rgba(251, 191, 36, 0.1);
+  background: rgba(251, 191, 36, 0.12);
 }
-
-/* 底部 */
 .about-footer {
   text-align: center;
   font-size: var(--t-3);
   color: var(--text-faint);
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-  margin-top: 8px;
+  padding-top: 14px;
+}
+
+/* ============ 通知 Toast ============ */
+.toast-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 10px;
+  pointer-events: none;
+  --toast-in-x: 0px;
+  --toast-in-y: 16px;
+}
+.toast-root.dir-top-down {
+  flex-direction: column;
+  justify-content: flex-start;
+  --toast-in-y: -16px;
+}
+.toast-root.dir-bottom-up {
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  --toast-in-y: 16px;
+}
+.toast-root.align-left {
+  align-items: flex-start;
+  --toast-in-x: -12px;
+}
+.toast-root.align-right {
+  align-items: flex-end;
+  --toast-in-x: 12px;
+}
+.toast-root.align-center {
+  align-items: center;
+  --toast-in-x: 0px;
+}
+/* 叠加模式：卡片脱离列表、彼此重叠 */
+.toast-root.stacked {
+  position: relative;
+}
+.toast-root.stacked .toast {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: calc(50 - var(--depth, 0));
+  opacity: calc(1 - var(--depth, 0) * 0.12);
+  transform: rotate(var(--tilt, 0deg)) scale(calc(1 - var(--depth, 0) * 0.022));
+}
+.toast-root.stacked.dir-bottom-up .toast {
+  bottom: calc(var(--depth, 0) * var(--stack-peek, 14px));
+}
+.toast-root.stacked.dir-top-down .toast {
+  top: calc(var(--depth, 0) * var(--stack-peek, 14px));
+}
+.toast-root.stacked .toast:nth-child(odd) {
+  --tilt: -1.5deg;
+}
+.toast-root.stacked .toast:nth-child(even) {
+  --tilt: 1.5deg;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: stretch;
+  width: 340px;
+  min-height: 84px;
+  border-radius: var(--radius-lg);
+  background: var(--toast-base);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--toast-shadow);
+  overflow: hidden;
+  cursor: pointer;
+  animation: toastIn 0.38s var(--ease) both;
+  transform: translateY(var(--toast-hover-y, 0px));
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+  font-family: var(--font-cn), var(--font-en);
+  -webkit-font-smoothing: antialiased;
+}
+.toast:hover {
+  --toast-hover-y: -2px;
+  box-shadow: var(--toast-shadow-hover);
+}
+.toast.toast-out {
+  animation: toastOut 0.28s var(--ease) both;
+}
+.toast-stripe {
+  width: 3px;
+  flex: 0 0 3px;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+.toast-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 9px 13px 10px 12px;
+  min-width: 0;
+}
+.toast-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.toast-title {
+  font-size: var(--t-8);
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.toast-time {
+  font-family: var(--font-mono);
+  font-size: var(--t-3);
+  color: var(--text-faint);
+  flex: 0 0 auto;
+}
+.toast-body {
+  font-size: var(--t-6);
+  line-height: 1.6;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-all;
+}
+
+/* 纯色背景下文字不再需要描边/投影补偿：保持零 text-shadow，字形最清晰 */
+
+/* ============ 滚动条 ============ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  transition: background var(--dur) var(--ease);
+}
+.list-scroll:hover::-webkit-scrollbar-thumb,
+.log-body:hover::-webkit-scrollbar-thumb,
+.settings-scroll:hover::-webkit-scrollbar-thumb,
+.about-scroll:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+  background-clip: padding-box;
+}
+.list-scroll:hover::-webkit-scrollbar-thumb:hover,
+.log-body:hover::-webkit-scrollbar-thumb:hover,
+.settings-scroll:hover::-webkit-scrollbar-thumb:hover,
+.about-scroll:hover::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text) 30%, transparent);
+  background-clip: padding-box;
+}
+
+/* ============ 键盘焦点环 ============ */
+.btn:focus-visible,
+.mini-btn:focus-visible,
+.tb-btn:focus-visible,
+.mode-btn:focus-visible,
+.preset:focus-visible,
+.item-action-btn:focus-visible,
+.select-input:focus-visible,
+.pos-mini:focus-visible,
+input[type='range']:focus-visible,
+input[type='color']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cb input:focus-visible + .box,
+.switch input:focus-visible + .switch-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ============ 单窗口内容宽度约束 ============ */
+/* 侧栏之外的可用宽度较大：设置/关于限制行宽并居中，避免长行难读 */
+.settings-scroll > * {
+  max-width: 820px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.about-scroll > * {
+  max-width: 620px;
+  margin-left: auto;
+  margin-right: auto;
 }
