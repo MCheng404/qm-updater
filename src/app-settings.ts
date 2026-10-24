@@ -3,7 +3,7 @@
  * 存储在 localStorage，主窗口与设置窗口通过 Tauri 事件同步。
  */
 
-export const SETTINGS_KEY = 'onekey-updater.settings';
+export const SETTINGS_KEY = 'qm-updater.settings';
 export const SETTINGS_CHANGED_EVENT = 'app-settings-changed';
 
 export interface AppSettings {

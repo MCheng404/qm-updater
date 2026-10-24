@@ -14,7 +14,7 @@ import { emit, listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 export type Lang = 'zh-CN' | 'en-US';
 
-export const LANG_KEY = 'onekey-updater.lang';
+export const LANG_KEY = 'qm-updater.lang';
 
 export const LANGS: Array<{ code: Lang; label: string; flag: string }> = [
   { code: 'zh-CN', label: '简体中文', flag: '🇨🇳' },
@@ -32,7 +32,7 @@ const zhCN: Record<string, string> = {
   'common.error': '错误',
 
   // ---- 主窗口 ----
-  'app.title': '系统一键更新',
+  'app.title': 'QM Updater',
   'app.admin': '管理员',
   'app.minimize': '最小化',
   'app.maximize': '最大化',
@@ -191,7 +191,7 @@ const zhCN: Record<string, string> = {
 
   // ---- 关于窗口 ----
   'about.title': '关于',
-  'about.appName': '一键更新',
+  'about.appName': 'QM Updater',
   'about.version': '版本',
   'about.description': '统一管理 npm、winget、pip、OpenClaw 四源软件更新的桌面工具。轻量、快速、无感。',
   'about.features': '主要功能',
@@ -219,7 +219,7 @@ const enUS: Record<string, string> = {
   'common.error': 'Error',
 
   // ---- Main window ----
-  'app.title': 'OneKey Updater',
+  'app.title': 'QM Updater',
   'app.admin': 'Administrator',
   'app.minimize': 'Minimize',
   'app.maximize': 'Maximize',
@@ -379,7 +379,7 @@ const enUS: Record<string, string> = {
 
   // ---- About window ----
   'about.title': 'About',
-  'about.appName': 'OneKey Updater',
+  'about.appName': 'QM Updater',
   'about.version': 'Version',
   'about.description': 'A desktop tool for unified software updates across npm, winget, pip and OpenClaw. Lightweight, fast and seamless.',
   'about.features': 'Key Features',

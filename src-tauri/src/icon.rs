@@ -233,10 +233,10 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
-/// 缓存文件路径：`%LOCALAPPDATA%\onekey-updater\icon-cache.json`
+/// 缓存文件路径：`%LOCALAPPDATA%\qm-updater\icon-cache.json`
 fn cache_path() -> Option<PathBuf> {
     let local = std::env::var("LOCALAPPDATA").ok()?;
-    Some(PathBuf::from(local).join("onekey-updater").join("icon-cache.json"))
+    Some(PathBuf::from(local).join("qm-updater").join("icon-cache.json"))
 }
 
 /// 默认品牌图标（SVG data URL），用于无法从注册表匹配到图标的情况

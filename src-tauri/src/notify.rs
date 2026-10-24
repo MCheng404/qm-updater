@@ -29,10 +29,10 @@ pub fn default_prefs() -> NotifyPrefs {
     }
 }
 
-/// 通知偏好持久化文件：`%LOCALAPPDATA%\onekey-updater\notify-prefs.json`
+/// 通知偏好持久化文件：`%LOCALAPPDATA%\qm-updater\notify-prefs.json`
 fn prefs_path() -> Option<PathBuf> {
     let local = std::env::var("LOCALAPPDATA").ok()?;
-    Some(PathBuf::from(local).join("onekey-updater").join("notify-prefs.json"))
+    Some(PathBuf::from(local).join("qm-updater").join("notify-prefs.json"))
 }
 
 pub fn load_prefs(_app: &AppHandle) -> NotifyPrefs {

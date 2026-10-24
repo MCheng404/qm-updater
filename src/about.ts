@@ -14,10 +14,10 @@ import { applyI18n as applyI18nShared, t, getLang, watchLang } from './i18n';
 
 // GitHub 配置
 const GITHUB_PROFILE = 'https://github.com/MCheng404';
-const GITHUB_REPO = 'https://github.com/MCheng404/onekey-updater';
+const GITHUB_REPO = 'https://github.com/MCheng404/qm-updater';
 /** GitHub Releases 列表（需要多条才能筛出桌面版，故用列表接口而非 /latest） */
 const REPO_API =
-  'https://api.github.com/repos/MCheng404/onekey-updater/releases?per_page=20';
+  'https://api.github.com/repos/MCheng404/qm-updater/releases?per_page=20';
 
 let win: ReturnType<typeof getCurrentWindow> | null = null;
 

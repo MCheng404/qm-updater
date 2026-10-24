@@ -8,7 +8,7 @@
 
 import { emit, listen, type UnlistenFn } from '@tauri-apps/api/event';
 
-export const FONT_KEY = 'onekey-updater.font';
+export const FONT_KEY = 'qm-updater.font';
 export const FONT_CHANGED_EVENT = 'font-changed';
 
 export type FontSource = 'builtin' | 'system' | 'file';
@@ -42,8 +42,8 @@ const BUILTIN_CN = "'LXGW Neo XiHei Plus', 'Microsoft YaHei UI', 'PingFang SC', 
 const BUILTIN_EN = "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 /** 自定义字体文件在 @font-face 里使用的家族名 */
-const USER_FAMILY = 'OneKeyUserFont';
-const USER_FACE_ID = 'onekey-user-font-face';
+const USER_FAMILY = 'QMUserFont';
+const USER_FACE_ID = 'qm-user-font-face';
 
 export function loadFont(): FontSettings {
   try {

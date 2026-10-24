@@ -42,5 +42,5 @@ fn is_autostart_mode() -> bool {
 fn main() {
     enable_gpu_acceleration();
     let autostart = is_autostart_mode();
-    onekey_updater_lib::run(autostart)
+    qm_updater_lib::run(autostart)
 }

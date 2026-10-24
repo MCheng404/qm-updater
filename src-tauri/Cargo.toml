@@ -1,13 +1,13 @@
 [package]
-name = "onekey-updater"
+name = "qm-updater"
 version = "2.1.0"
-description = "系统一键更新工具"
+description = "QM Updater：统一管理 npm / winget / pip / OpenClaw 软件更新"
 authors = ["Cookies"]
 edition = "2021"
 rust-version = "1.77.2"
 
 [lib]
-name = "onekey_updater_lib"
+name = "qm_updater_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]

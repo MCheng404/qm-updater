@@ -273,7 +273,7 @@ fn temp_script_path() -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    PathBuf::from(dir).join(format!("onekey-{}-{}.ps1", std::process::id(), nanos))
+    PathBuf::from(dir).join(format!("qm-{}-{}.ps1", std::process::id(), nanos))
 }
 
 /// 命令是否可用

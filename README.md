@@ -1,8 +1,8 @@
-# OneKey Updater
+# QM Updater
 
-[![GitHub release](https://img.shields.io/github/v/release/MCheng404/onekey-updater)](https://github.com/MCheng404/onekey-updater/releases)
-[![GitHub license](https://img.shields.io/github/license/MCheng404/onekey-updater)](https://github.com/MCheng404/onekey-updater/blob/main/LICENSE)
-[![GitHub downloads](https://img.shields.io/github/downloads/MCheng404/onekey-updater/total)](https://github.com/MCheng404/onekey-updater/releases)
+[![GitHub release](https://img.shields.io/github/v/release/MCheng404/qm-updater)](https://github.com/MCheng404/qm-updater/releases)
+[![GitHub license](https://img.shields.io/github/license/MCheng404/qm-updater)](https://github.com/MCheng404/qm-updater/blob/main/LICENSE)
+[![GitHub downloads](https://img.shields.io/github/downloads/MCheng404/qm-updater/total)](https://github.com/MCheng404/qm-updater/releases)
 
 **[简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | English**
 
@@ -33,12 +33,12 @@ A desktop tool for unified software updates across npm, winget, pip, and OpenCla
 
 ### Download
 
-Go to the [Releases](https://github.com/MCheng404/onekey-updater/releases) page and download the latest version:
+Go to the [Releases](https://github.com/MCheng404/qm-updater/releases) page and download the latest version:
 
 | Architecture | Installer | Portable |
 |--------------|-----------|----------|
-| x64 (Intel/AMD) | `onekey-updater-<version>-x64-setup.exe` | `onekey-updater-x64.exe` |
-| ARM64 (Snapdragon) | `onekey-updater-<version>-arm64-setup.exe` | `onekey-updater-arm64.exe` |
+| x64 (Intel/AMD) | `qm-updater-<version>-x64-setup.exe` | `qm-updater-x64.exe` |
+| ARM64 (Snapdragon) | `qm-updater-<version>-arm64-setup.exe` | `qm-updater-arm64.exe` |
 
 > Not sure which architecture? Open **Settings → System → About** and check **System type**.
 

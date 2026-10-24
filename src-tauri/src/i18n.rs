@@ -20,7 +20,7 @@ pub enum Lang {
 /// 0 = 中文，1 = 英文。默认中文（与前端 detectLang 的兜底一致）
 static CURRENT: AtomicU8 = AtomicU8::new(0);
 
-/// 语言落盘位置：`%LOCALAPPDATA%\onekey-updater\lang.txt`
+/// 语言落盘位置：`%LOCALAPPDATA%\qm-updater\lang.txt`
 ///
 /// 前端把语言存在 localStorage，但后端的 setup 阶段（前端 JS 还没跑）就要产出
 /// 日志文案（"已加载 N 个系统字体"），所以后端必须自己留一份，启动时先恢复。
@@ -28,7 +28,7 @@ fn lang_path() -> Option<std::path::PathBuf> {
     let local = std::env::var("LOCALAPPDATA").ok()?;
     Some(
         std::path::PathBuf::from(local)
-            .join("onekey-updater")
+            .join("qm-updater")
             .join("lang.txt"),
     )
 }

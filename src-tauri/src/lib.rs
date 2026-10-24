@@ -366,7 +366,7 @@ async fn load_notify_prefs(app: AppHandle) -> Result<NotifyPrefs, String> {
 
 /// 开机自启动：注册表路径 HKCU\Software\Microsoft\Windows\CurrentVersion\Run
 const AUTOSTART_REG_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
-const AUTOSTART_REG_VALUE: &str = "OneKeyUpdater";
+const AUTOSTART_REG_VALUE: &str = "QMUpdater";
 
 /// 查询是否已启用开机自启动
 #[tauri::command]

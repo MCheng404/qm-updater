@@ -1,8 +1,8 @@
-# 一鍵更新 (OneKey Updater)
+# QM Updater
 
-[![GitHub release](https://img.shields.io/github/v/release/MCheng404/onekey-updater)](https://github.com/MCheng404/onekey-updater/releases)
-[![GitHub license](https://img.shields.io/github/license/MCheng404/onekey-updater)](https://github.com/MCheng404/onekey-updater/blob/main/LICENSE)
-[![GitHub downloads](https://img.shields.io/github/downloads/MCheng404/onekey-updater/total)](https://github.com/MCheng404/onekey-updater/releases)
+[![GitHub release](https://img.shields.io/github/v/release/MCheng404/qm-updater)](https://github.com/MCheng404/qm-updater/releases)
+[![GitHub license](https://img.shields.io/github/license/MCheng404/qm-updater)](https://github.com/MCheng404/qm-updater/blob/main/LICENSE)
+[![GitHub downloads](https://img.shields.io/github/downloads/MCheng404/qm-updater/total)](https://github.com/MCheng404/qm-updater/releases)
 
 **[简体中文](README.zh-CN.md) | 繁體中文 | [English](README.md)**
 
@@ -33,12 +33,12 @@
 
 ### 下載
 
-前往 [Releases](https://github.com/MCheng404/onekey-updater/releases) 頁面下載最新版本：
+前往 [Releases](https://github.com/MCheng404/qm-updater/releases) 頁面下載最新版本：
 
 | 架構 | 安裝程式 | 免安裝版 |
 |------|----------|----------|
-| x64（Intel / AMD） | `onekey-updater-<版本號>-x64-setup.exe` | `onekey-updater-x64.exe` |
-| ARM64（高通驍龍） | `onekey-updater-<版本號>-arm64-setup.exe` | `onekey-updater-arm64.exe` |
+| x64（Intel / AMD） | `qm-updater-<版本號>-x64-setup.exe` | `qm-updater-x64.exe` |
+| ARM64（高通驍龍） | `qm-updater-<版本號>-arm64-setup.exe` | `qm-updater-arm64.exe` |
 
 > 不確定自己的架構？開啟「設定 → 系統 → 關於」，查看「系統類型」。
 

@@ -1,6 +1,6 @@
 //! 运行日志落盘。
 //!
-//! 日志按天写到 `%LOCALAPPDATA%\onekey-updater\logs\YYYY-MM-DD.log`，
+//! 日志按天写到 `%LOCALAPPDATA%\qm-updater\logs\YYYY-MM-DD.log`，
 //! 供更新失败后事后排查（设置里的「打开日志文件夹」也指向这里）。
 //!
 //! 设计原则：写日志失败一律静默 —— 它只是辅助手段，绝不能影响更新主流程。
@@ -10,10 +10,10 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 
-/// 日志目录：`%LOCALAPPDATA%\onekey-updater\logs`
+/// 日志目录：`%LOCALAPPDATA%\qm-updater\logs`
 pub fn log_dir() -> Option<PathBuf> {
     let local = std::env::var("LOCALAPPDATA").ok()?;
-    Some(PathBuf::from(local).join("onekey-updater").join("logs"))
+    Some(PathBuf::from(local).join("qm-updater").join("logs"))
 }
 
 /// 今天日志文件的完整路径

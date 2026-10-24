@@ -40,7 +40,7 @@ export interface ThemeState {
   material: WindowMaterial;
 }
 
-export const THEME_KEY = 'onekey-updater.theme';
+export const THEME_KEY = 'qm-updater.theme';
 
 /* ============ 深色 / 浅色默认文字 ============ */
 const DARK_TEXT = '#f4f7fa';

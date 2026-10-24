@@ -103,13 +103,13 @@ jobs:
         if: env.WINDOWS_CERTIFICATE != ''
         run: |
           $bytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
-          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\onekey.pfx", $bytes)
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\qm.pfx", $bytes)
 
       - name: Sign portable binaries
         if: env.WINDOWS_CERTIFICATE != ''
         run: |
           $st = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.Component.MSBuild -find "**\signtool.exe" | Select-Object -First 1
-          & $st sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f "$env:RUNNER_TEMP\onekey.pfx" /p $env:WINDOWS_CERTIFICATE_PASSWORD src-tauri/target/release/onekey-updater.exe src-tauri/target/aarch64-pc-windows-msvc/release/onekey-updater.exe
+          & $st sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f "$env:RUNNER_TEMP\qm.pfx" /p $env:WINDOWS_CERTIFICATE_PASSWORD src-tauri/target/release/qm-updater.exe src-tauri/target/aarch64-pc-windows-msvc/release/qm-updater.exe
 
       - name: Build x64 installer
         run: npm run tauri -- build --config '{"build":{"beforeBuildCommand":null}}'
@@ -123,28 +123,27 @@ jobs:
           $st = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.Component.MSBuild -find "**\signtool.exe" | Select-Object -First 1
           $installers = Get-ChildItem src-tauri/target -Recurse -Filter *-setup.exe
           foreach ($i in $installers) {
-            & $st sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f "$env:RUNNER_TEMP\onekey.pfx" /p $env:WINDOWS_CERTIFICATE_PASSWORD $i.FullName
+            & $st sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f "$env:RUNNER_TEMP\qm.pfx" /p $env:WINDOWS_CERTIFICATE_PASSWORD $i.FullName
           }
 
-      # 便携包改名，与发布资产命名一致（onekey-updater-x64.exe / -arm64.exe）
+      # 便携包改名，与发布资产命名一致（qm-updater-x64.exe / -arm64.exe）
       - name: Rename portable binaries
         run: |
-          Copy-Item src-tauri/target/release/onekey-updater.exe src-tauri/target/release/onekey-updater-x64.exe
-          Copy-Item src-tauri/target/aarch64-pc-windows-msvc/release/onekey-updater.exe src-tauri/target/aarch64-pc-windows-msvc/release/onekey-updater-arm64.exe
+          Copy-Item src-tauri/target/release/qm-updater.exe src-tauri/target/release/qm-updater-x64.exe
+          Copy-Item src-tauri/target/aarch64-pc-windows-msvc/release/qm-updater.exe src-tauri/target/aarch64-pc-windows-msvc/release/qm-updater-arm64.exe
 
-      # ⚠️ 安装包必须改成正 ASCII 名再上传。
-      # Tauri 的 NSIS 产物是按 productName 拼的，而 productName 是中文「一键更新」，
-      # 于是文件名是 `一键更新_2.2.0_x64-setup.exe`；GitHub 上传资产时会**剥掉非 ASCII
-      # 字符**，结果变成残缺的 `_2.2.0_x64-setup.exe`，SHA256SUMS 里的名字也就对不上了。
-      # 统一改成 README 里写的 onekey-updater-<ver>-<arch>-setup.exe。
+      # ⚠️ 安装包必须改成无空格 ASCII 名再上传。
+      # Tauri 的 NSIS 产物是按 productName 拼的，即 `QM Updater_2.2.0_x64-setup.exe`
+      # （含空格）；统一改成 README 里写的 qm-updater-<ver>-<arch>-setup.exe，
+      # 与便携包命名一致，也避免文件名带空格在命令行/脚本里被误判。
       # 必须放在 Generate SHA256SUMS 之前，否则校验文件里还是旧名。
       - name: Rename installers
         run: |
           $v = "${{ steps.rel.outputs.version }}"
           Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe |
-            Rename-Item -NewName "onekey-updater-$v-x64-setup.exe"
+            Rename-Item -NewName "qm-updater-$v-x64-setup.exe"
           Get-ChildItem src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*-setup.exe |
-            Rename-Item -NewName "onekey-updater-$v-arm64-setup.exe"
+            Rename-Item -NewName "qm-updater-$v-arm64-setup.exe"
 
       - name: Generate SHA256SUMS
         run: |
@@ -158,8 +157,8 @@ jobs:
           $items = @()
           $items += Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe
           $items += Get-ChildItem src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe
-          $items += 'src-tauri/target/release/onekey-updater-x64.exe'
-          $items += 'src-tauri/target/aarch64-pc-windows-msvc/release/onekey-updater-arm64.exe'
+          $items += 'src-tauri/target/release/qm-updater-x64.exe'
+          $items += 'src-tauri/target/aarch64-pc-windows-msvc/release/qm-updater-arm64.exe'
 
           $lines = @()
           foreach ($f in $items) {
@@ -196,13 +195,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.rel.outputs.tag }}
-          name: OneKey Updater ${{ steps.rel.outputs.tag }}
+          name: QM Updater ${{ steps.rel.outputs.tag }}
           body_path: RELEASE_NOTES.md
           files: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe
-            src-tauri/target/release/onekey-updater-x64.exe
-            src-tauri/target/aarch64-pc-windows-msvc/release/onekey-updater-arm64.exe
+            src-tauri/target/release/qm-updater-x64.exe
+            src-tauri/target/aarch64-pc-windows-msvc/release/qm-updater-arm64.exe
             SHA256SUMS.txt
           draft: false
           prerelease: false

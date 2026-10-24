@@ -103,7 +103,7 @@ def window_pid(hwnd: int) -> int:
 def find_window(selector: str) -> int:
     """按 PID（纯数字）或标题关键字查找窗口。
 
-    优先 PID：按标题匹配极易误伤（例如编辑器打开了 `一键更新.ps1`，
+    优先 PID：按标题匹配极易误伤（例如编辑器打开了 `QM Updater.ps1`，
     标题里也含关键字），PID 是唯一可靠的。
     """
     if selector.isdigit():
@@ -215,7 +215,7 @@ def main() -> int:
         return 1
 
     out = sys.argv[1]
-    selector = sys.argv[2] if len(sys.argv) > 2 else "一键更新"
+    selector = sys.argv[2] if len(sys.argv) > 2 else "QM Updater"
 
     make_dpi_aware()
 

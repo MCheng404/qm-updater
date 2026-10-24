@@ -29,10 +29,10 @@ struct FontConfig {
     path: Option<String>,
 }
 
-/// 配置持久化位置：`%LOCALAPPDATA%\onekey-updater\font.json`
+/// 配置持久化位置：`%LOCALAPPDATA%\qm-updater\font.json`
 fn config_path() -> Option<PathBuf> {
     let local = std::env::var("LOCALAPPDATA").ok()?;
-    Some(PathBuf::from(local).join("onekey-updater").join("font.json"))
+    Some(PathBuf::from(local).join("qm-updater").join("font.json"))
 }
 
 /// 启动时把上次选的字体读回内存
