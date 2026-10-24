@@ -1,2 +1,3 @@
 [toolchain]
-channel = "stable-x86_64-pc-windows-msvc"
+# stable 按宿主自动解析：Windows 桌面 = x86_64-pc-windows-msvc，Linux CI = x86_64-unknown-linux-gnu
+channel = "stable"
