@@ -30,7 +30,7 @@ dist-ssr
 
 # Rust / Tauri
 src-tauri/target
-src-tauri/Cargo.lock
+# 提交 Cargo.lock（binary crate 锁定依赖，防止 CI 解析到与 npm 不同 minor 的 tauri crate）
 # 只忽略 gen 下的非 Android 生成物；gen/android 需入库（CI 免 init，官方推荐提交）
 src-tauri/gen/*
 !src-tauri/gen/android
