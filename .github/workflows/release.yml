@@ -371,7 +371,9 @@ jobs:
           name: QM Updater ${{ needs.desktop.outputs.tag }}
           body_path: RELEASE_NOTES.md
           files: |
-            desktop-artifacts/*.exe
+            # desktop artifact 的上传 path 是分散 glob，zip 内保留 workspace 根相对路径
+            # （src-tauri/target/...），下载后 exe 在深层子目录，必须用 ** 匹配
+            desktop-artifacts/**/*.exe
             android-artifacts/qm-updater-*.aab
             android-artifacts/qm-updater-*-android.apk
             SHA256SUMS.txt
