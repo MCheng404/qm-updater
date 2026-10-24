@@ -12,6 +12,48 @@ compile_error!(
      或 `cargo build --release --features custom-protocol`。"
 );
 
+/// 双击 exe 启动时隐藏随之弹出的控制台窗口。
+///
+/// 背景：debug 构建是 **控制台子系统**（release 由上面的 `windows_subsystem` 改成 GUI），
+/// 于是从资源管理器双击 `qm-updater.exe` 时，Windows 会为它新建一个黑色 cmd 窗口。
+///
+/// 但不能无条件 `ShowWindow(SW_HIDE)` —— `npm run tauri:dev` / `cargo run` 时本进程
+/// 附着在**终端已有的控制台**上，一起藏掉会把用户正在看的终端窗口也藏了。
+/// 用 `GetConsoleProcessList` 判断：控制台上只有本进程（双击新建的独立控制台）才隐藏，
+/// 有别的进程（终端 / cargo）就保持原样，方便看日志。
+#[cfg(windows)]
+fn hide_standalone_console() {
+    use core::ffi::c_void;
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetConsoleWindow() -> *mut c_void;
+        fn GetConsoleProcessList(process_list: *mut u32, process_count: u32) -> u32;
+    }
+
+    #[link(name = "user32")]
+    extern "system" {
+        fn ShowWindow(hwnd: *mut c_void, cmd_show: i32) -> i32;
+    }
+
+    const SW_HIDE: i32 = 0;
+    const PROBE: usize = 4;
+
+    let mut pids = [0u32; PROBE];
+    // 返回控制台上的进程数；超过缓冲区大小时返回所需容量，同样说明"不是独占"
+    let count = unsafe { GetConsoleProcessList(pids.as_mut_ptr(), PROBE as u32) };
+    if count > 1 {
+        return;
+    }
+
+    let hwnd = unsafe { GetConsoleWindow() };
+    if !hwnd.is_null() {
+        unsafe {
+            ShowWindow(hwnd, SW_HIDE);
+        }
+    }
+}
+
 /// 在创建 WebView 之前设置 WebView2 的 Chromium 启动参数。
 ///
 /// 重要：之前启用的 `--ignore-gpu-blocklist --enable-zero-copy
@@ -40,6 +82,10 @@ fn is_autostart_mode() -> bool {
 }
 
 fn main() {
+    // 最先执行：双击启动时把随之弹出的 cmd 窗口藏掉（终端启动时不动）
+    #[cfg(windows)]
+    hide_standalone_console();
+
     enable_gpu_acceleration();
     let autostart = is_autostart_mode();
     qm_updater_lib::run(autostart)
