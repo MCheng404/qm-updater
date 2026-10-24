@@ -112,7 +112,12 @@ export const useThemeStore = defineStore('theme', () => {
 
   /** 系统主题变化且处于跟随模式时，就地重新应用（不广播，各窗口各自监听） */
   function reapplyIfSystem(): void {
-    if (state.value.mode === 'system') applyTheme(state.value);
+    if (state.value.mode !== 'system') return;
+    // 重新按当前系统模式校正默认文字色（深↔浅切换时白字/黑字要跟着换），
+    // 自定义配色不受影响 —— applyMode 只改仍是默认值的那两个字段。
+    state.value = applyMode(state.value, 'system');
+    applyTheme(state.value);
+    saveTheme(state.value);
   }
 
   return {

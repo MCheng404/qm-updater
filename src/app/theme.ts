@@ -242,11 +242,15 @@ export function saveTheme(theme: ThemeState): void {
 export function loadTheme(): ThemeState {
   try {
     const raw = localStorage.getItem(THEME_KEY);
-    if (!raw) return { ...DEFAULT_THEME };
+    if (!raw) return applyMode({ ...DEFAULT_THEME }, DEFAULT_THEME.mode);
     const parsed = JSON.parse(raw) as Partial<ThemeState>;
-    return { ...DEFAULT_THEME, ...parsed };
+    const merged = { ...DEFAULT_THEME, ...parsed };
+    // 按当前模式校正"默认文字色"：DEFAULT_THEME 的 text/dim 是深色模式的浅色值，
+    // 若 mode=system 且系统是浅色，直接套用会让浅色玻璃上出现白字（首启几乎看不清）。
+    // 只在仍是默认值时改写，自定义配色不受影响 —— 与手动切换模式同一套规则。
+    return applyMode(merged, merged.mode);
   } catch {
-    return { ...DEFAULT_THEME };
+    return applyMode({ ...DEFAULT_THEME }, DEFAULT_THEME.mode);
   }
 }
 
