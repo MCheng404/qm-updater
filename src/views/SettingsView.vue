@@ -6,7 +6,6 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { invoke } from '@tauri-apps/api/core';
-import { getVersion } from '@tauri-apps/api/app';
 import { PRESETS } from '../app/theme';
 import {
   DEFAULT_FONT,
@@ -19,9 +18,6 @@ import { useThemeStore, useAppSettingsStore } from '../app/stores';
 import type { NotifyPrefs } from '../app/types';
 
 const { t, locale } = useI18n();
-const emit = defineEmits<{
-  (e: 'navigate', view: 'about'): void;
-}>();
 const theme = useThemeStore();
 const appSettings = useAppSettingsStore();
 
@@ -76,7 +72,6 @@ const fontScalePct = computed(() => Math.round(font.value.scale * 100));
 /* ============ 其它 ============ */
 const iconStat = ref('');
 const logPath = ref('—');
-const settingsVersion = ref('—');
 const ignoredList = computed(() => appSettings.ignoredList());
 
 /* ============ 主题 ============ */
@@ -296,15 +291,11 @@ async function refreshIcons(): Promise<void> {
   }
 }
 
-/* ============ 日志 / 关于 ============ */
+/* ============ 日志 ============ */
 function openLogDir(): void {
   void invoke('open_log_dir').catch((err) => {
     console.warn('[settings] 打开日志文件夹失败', err);
   });
-}
-
-function openAbout(): void {
-  emit('navigate', 'about');
 }
 
 /* ============ 初始化 ============ */
@@ -335,15 +326,6 @@ onMounted(() => {
     })
     .catch(() => {
       logPath.value = '—';
-    });
-
-  // 版本号从运行时读取，避免与包版本不一致
-  void getVersion()
-    .then((v) => {
-      settingsVersion.value = v;
-    })
-    .catch(() => {
-      settingsVersion.value = '—';
     });
 });
 
@@ -733,25 +715,6 @@ onMounted(() => {
         <div class="settings-actions">
           <button class="mini-btn" type="button" @click="openLogDir">
             {{ $t('settings.openLogFolder') }}
-          </button>
-        </div>
-      </section>
-
-      <section class="settings-section">
-        <h2>{{ $t('settings.sectionAbout') }}</h2>
-        <div class="about-row">
-          <div class="about-info">
-            <div class="about-name">{{ $t('about.appName') }}</div>
-            <div class="about-version">
-              {{ $t('about.version') }} <span class="mono">{{ settingsVersion }}</span>
-            </div>
-            <div class="about-desc">{{ $t('settings.aboutDesc') }}</div>
-          </div>
-          <button class="btn btn-primary" type="button" @click="openAbout">
-            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8">
-              <circle cx="8" cy="8" r="6.5" /><path d="M8 5v.01M8 8v3" />
-            </svg>
-            <span>{{ $t('settings.openAbout') }}</span>
           </button>
         </div>
       </section>

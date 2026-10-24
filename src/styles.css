@@ -1817,38 +1817,6 @@ input[type='range']:active::-webkit-slider-thumb {
   word-break: break-word;
 }
 
-/* 设置 - 关于行 */
-.about-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 4px 0;
-}
-.about-info {
-  flex: 1;
-  min-width: 0;
-}
-.about-name {
-  font-size: var(--t-8);
-  font-weight: 600;
-  color: var(--text);
-}
-.about-version {
-  font-size: var(--t-4);
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  margin-top: 2px;
-}
-.about-desc {
-  font-size: var(--t-4);
-  color: var(--text-faint);
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* ============ 关于视图 ============ */
 .about-scroll {
   flex: 1;

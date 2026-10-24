@@ -139,9 +139,6 @@ export default {
   'settings.sectionLog': 'Log',
   'settings.logHint': 'Runtime logs are written to a local file per day. When an update fails, the main list shows an "update failed · view log" entry.',
   'settings.openLogFolder': 'Open log folder',
-  'settings.sectionAbout': 'About',
-  'settings.aboutDesc': 'Unified npm / winget / pip / OpenClaw software updater',
-  'settings.openAbout': 'About this app',
   'settings.resetAppearance': 'Reset appearance',
 
   // ---- About window ----

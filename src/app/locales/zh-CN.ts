@@ -138,9 +138,6 @@ export default {
   'settings.sectionLog': '日志',
   'settings.logHint': '运行日志按天写入本地文件。更新失败时，主界面列表会出现「更新失败 · 查看日志」入口。',
   'settings.openLogFolder': '打开日志文件夹',
-  'settings.sectionAbout': '关于',
-  'settings.aboutDesc': '统一管理 npm / winget / pip / OpenClaw 四源软件更新',
-  'settings.openAbout': '关于软件',
   'settings.resetAppearance': '恢复默认外观',
 
   // ---- 关于窗口 ----
