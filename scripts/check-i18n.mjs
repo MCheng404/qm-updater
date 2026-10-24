@@ -38,7 +38,7 @@ if (!fail) console.log('✅ 中英 key 完全对齐');
 
 // ---- 收集引用（扫全部 .vue / .ts，跳过语言包本身） ----
 const used = new Set();
-const NS = 'common|app|nav|btn|env|status|empty|group|log|action|notify|settings|about';
+const NS = 'common|app|nav|updates|btn|env|status|empty|group|log|action|notify|settings|about';
 const keyLike = new RegExp(`'((?:${NS})\\.[A-Za-z0-9_.]+)'`, 'g');
 
 const sources = walk('src').filter((p) => /\.(vue|ts)$/.test(p) && !p.includes('locales'));

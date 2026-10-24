@@ -1,8 +1,12 @@
 name: Release
 
-# 推一个 vX.Y.Z 的 tag 即触发：云端自动构建 x64 + ARM64 的「安装包 + 便携包」，
-# （可选）Authenticode 签名，生成 SHA256SUMS.txt 与自动更新日志，并发布 GitHub Release。
-# 也可在 Actions 页面手动 `workflow_dispatch` 触发。
+# 推一个 vX.Y.Z 的 tag 即触发：云端并行构建双端产物并发布到同一个 GitHub Release：
+#   - Windows 桌面：x64 + ARM64 的「安装包 + 便携包」、（可选）Authenticode 签名
+#   - Android：APK + AAB（release 构建；配置 ANDROID_KEYSTORE_* secrets 后自动签名）
+# 双端版本号同源：tag → scripts/sync-version.mjs 同步主版本（package.json / Cargo.toml /
+# tauri.conf.json / AboutView），Android 侧版本由 tauri 在 android build 时从主版本动态生成，
+# 天然保持一致。
+# 也可在 Actions 页面手动 `workflow_dispatch` 触发（tag 必填）。
 on:
   push:
     tags:
@@ -25,8 +29,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  release:
+  # ================= Windows 桌面构建 =================
+  desktop:
     runs-on: windows-latest
+    outputs:
+      tag: ${{ steps.rel.outputs.tag }}
+      version: ${{ steps.rel.outputs.version }}
     # ⚠️ 血泪教训：`secrets` 上下文不能出现在 if: 里 —— GitHub 会直接判整个工作流文件非法
     # （Invalid workflow file: Unrecognized named-value: 'secrets'），表现为 0s 失败、连 job 都不启动。
     # 正确做法：先把 secret 落到 job 级 env（此处允许 secrets），再用 env.X != '' 做条件。
@@ -40,7 +48,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0       # 更新日志需要完整历史
+          fetch-depth: 0       # 桌面 job 不生成日志（发布 job 统一生成），此处保持完整历史以备后用
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -63,7 +71,7 @@ jobs:
         run: npm ci
 
       # 解析本次发布的 tag：tag 推送取 ref_name，手动触发取 inputs.tag。
-      # 并把版本号自动同步到 5 处（package.json / Cargo.toml / tauri.conf.json / about.html / about.ts）
+      # 并把版本号自动同步到主版本 4 处（package.json / Cargo.toml / tauri.conf.json / AboutView）
       - name: Resolve release tag
         id: rel
         shell: pwsh
@@ -178,8 +186,170 @@ jobs:
           }
           Get-Content SHA256SUMS.txt
 
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-artifacts
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe
+            src-tauri/target/release/qm-updater-x64.exe
+            src-tauri/target/aarch64-pc-windows-msvc/release/qm-updater-arm64.exe
+            SHA256SUMS.txt
+          if-no-files-found: error
+
+  # ================= Android 构建（APK + AAB） =================
+  android:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.rel.outputs.tag }}
+      version: ${{ steps.rel.outputs.version }}
+    env:
+      ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+      ANDROID_KEYSTORE_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_KEY_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'        # Android Gradle Plugin 兼容要求 17+
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Tauri Android 默认构建 4 个 ABI；NDK 交叉编译
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Resolve release tag
+        id: rel
+        env:
+          IN_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          if [ -n "$IN_TAG" ]; then tag="$IN_TAG"; else tag="${{ github.ref_name }}"; fi
+          case "$tag" in v[0-9]*) ;; *) echo "需要一个形如 vX.Y.Z 的 tag，当前解析为 '$tag'。" >&2; exit 1;; esac
+          v="${tag#v}"
+          echo "tag=$tag"   >> "$GITHUB_OUTPUT"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "发布版本：$v"
+          node scripts/sync-version.mjs "$v"
+
+      - name: Build frontend
+        run: npm run build
+
+      # Android SDK：ubuntu-latest 镜像自带（ANDROID_SDK_ROOT），增量补齐 tauri 所需
+      #   - platform-tools
+      #   - platforms;android-36（gen/android 模板 compileSdk=36）
+      #   - ndk;29.0.13846066（tauri-cli 2.x 期望版本；ensure_ndk 找到它后自动设置 NDK_HOME）
+      # sdkmanager 缺失时回退到官方 -latest 通道下载 cmdline-tools。
+      - name: Setup Android SDK
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"   # tauri 的 ensure_sdk 认 ANDROID_HOME
+          if [ ! -x "$SDK/cmdline-tools/latest/bin/sdkmanager" ]; then
+            mkdir -p "$SDK/cmdline-tools/latest"
+            curl -sS -o /tmp/cmdtools.zip https://dl.google.com/android/repository/commandlinetools-linux-latest.zip
+            unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools
+            mv /tmp/cmdtools/cmdline-tools/* "$SDK/cmdline-tools/latest/"
+          fi
+          export PATH="$SDK/cmdline-tools/latest/bin:$PATH"
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install "platform-tools" "platforms;android-36" "ndk;29.0.13846066" > /dev/null
+          echo "sdkmanager: $(sdkmanager --version 2>&1 | tail -1)"
+          ls "$SDK"
+
+      # Android release 签名：配置 ANDROID_KEYSTORE_* secrets 后自动签名；
+      # 未配置则产出 debug 签名产物（可安装测试，正式分发请配置密钥）。
+      # build.gradle.kts 的 release signingConfig 读取同名环境变量（见 gen/android/app/build.gradle.kts）。
+      - name: Decode Android keystore
+        if: env.ANDROID_KEYSTORE_B64 != ''
+        run: |
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/qm-android.keystore"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/qm-android.keystore" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_ALIAS=$ANDROID_KEYSTORE_ALIAS" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_KEY_PASSWORD=$ANDROID_KEYSTORE_KEY_PASSWORD" >> "$GITHUB_ENV"
+          echo "keystore decoded to $RUNNER_TEMP/qm-android.keystore"
+
+      # 一次构建同时产出 APK 与 AAB（release）。前端已单独构建，beforeBuildCommand 置 null 复用。
+      # 版本号：tauri 在构建时从同步后的主版本动态生成 tauri.properties（versionName/versionCode），
+      # 与桌面端同源，天然保持一致。
+      - name: Build Android (APK + AAB)
+        run: |
+          npm run tauri -- android build --target aab --apk --config '{"build":{"beforeBuildCommand":null}}'
+
+      - name: Collect Android artifacts
+        run: |
+          v="${{ steps.rel.outputs.version }}"
+          APK=$(ls src-tauri/gen/android/app/build/outputs/apk/release/*.apk | head -1)
+          mkdir -p dist-android
+          cp "$APK" "dist-android/qm-updater-$v-android.apk"
+          cp src-tauri/gen/android/app/build/outputs/bundle/release/app-release.aab "dist-android/qm-updater-$v.aab"
+          cd dist-android
+          sha256sum qm-updater-*.aab qm-updater-*-android.apk > SHA256SUMS-android.txt
+          ls -la
+          cat SHA256SUMS-android.txt
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-artifacts
+          path: dist-android
+          if-no-files-found: error
+
+  # ================= 合并双端产物并发布 =================
+  publish:
+    runs-on: ubuntu-latest
+    needs: [desktop, android]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0       # 更新日志需要完整历史
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-artifacts
+          path: desktop-artifacts
+
+      - name: Download Android artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: android-artifacts
+          path: android-artifacts
+
+      # 双端校验和合并为一个 SHA256SUMS.txt（桌面 4 行 + Android 2 行 = 6 行）
+      - name: Merge checksums
+        run: |
+          cat desktop-artifacts/SHA256SUMS.txt android-artifacts/SHA256SUMS-android.txt > SHA256SUMS.txt
+          echo "==== merged SHA256SUMS.txt ===="
+          cat SHA256SUMS.txt
+          count=$(wc -l < SHA256SUMS.txt)
+          if [ "$count" -ne 6 ]; then
+            echo "期望 6 条校验和，实际 $count 条" >&2
+            exit 1
+          fi
+
       - name: Build release notes
-        shell: bash
         run: |
           prev=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
           range="${prev}..HEAD"
@@ -194,14 +364,13 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.rel.outputs.tag }}
-          name: QM Updater ${{ steps.rel.outputs.tag }}
+          tag_name: ${{ needs.desktop.outputs.tag }}
+          name: QM Updater ${{ needs.desktop.outputs.tag }}
           body_path: RELEASE_NOTES.md
           files: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe
-            src-tauri/target/release/qm-updater-x64.exe
-            src-tauri/target/aarch64-pc-windows-msvc/release/qm-updater-arm64.exe
+            desktop-artifacts/*.exe
+            android-artifacts/qm-updater-*.aab
+            android-artifacts/qm-updater-*-android.apk
             SHA256SUMS.txt
           draft: false
           prerelease: false

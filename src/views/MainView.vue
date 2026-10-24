@@ -10,11 +10,11 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import UpdateItem from '../components/UpdateItem.vue';
 import { ICON, SOURCE_ICON } from '../app/icons';
+import { matchBuiltinIcon } from '../app/builtin-icons';
 import { popCheckbox, pulse } from '../app/dom';
 import { isItemIgnored } from '../app/app-settings';
 import { useAppSettingsStore } from '../app/stores';
 import type {
-  EnvStatus,
   ItemResult,
   LogLine,
   Progress,
@@ -45,8 +45,9 @@ const failedIds = ref(new Set<string>());
 const lastCheckError = ref<string | null>(null);
 /** 仅"新一次扫描完成"为 true：播放入场动画；其余渲染一律 false */
 const animateItems = ref(false);
-const lastEnv = ref<EnvStatus | null>(null);
 const isAutostart = ref(false);
+/** 运行日志卡片是否折叠 */
+const logCollapsed = ref(false);
 
 const logLines = ref<LogLine[]>([]);
 const logFlashing = ref(false);
@@ -75,6 +76,11 @@ const visibleItems = computed(() =>
 const ignoredCount = computed(() => items.value.length - visibleItems.value.length);
 const selectedCount = computed(
   () => visibleItems.value.filter((i) => checked.value.has(i.id)).length,
+);
+
+/** 页面标题：未扫描显示"可更新项"，扫描后显示数量 */
+const headTitle = computed(() =>
+  scanned.value ? t('updates.title', { count: visibleItems.value.length }) : t('updates.titleIdle'),
 );
 
 interface ItemGroup {
@@ -131,34 +137,7 @@ const emptyState = computed<EmptyState | null>((): EmptyState | null => {
   return null;
 });
 
-const envChips = computed(() => {
-  const env = lastEnv.value;
-  if (!env) return [] as Array<{ key: string; text: string; on: boolean; title?: string }>;
-  const chips: Array<{ key: string; text: string; on: boolean; title?: string }> = [];
-  const pairs: Array<[string, boolean]> = [
-    ['npm', env.npm],
-    ['winget', env.winget],
-    ['pip', env.pip],
-    ['openclaw', env.openclaw],
-  ];
-  for (const [name, ok] of pairs) {
-    chips.push({ key: name, text: t(ok ? 'env.ready' : 'env.missing', { name }), on: ok });
-  }
-  // Node 单独一条：它是 OpenClaw 的硬前置条件（>=24.16 <25 || >=26.1）
-  if (env.nodeVersion) {
-    chips.push({
-      key: 'node',
-      text: t(env.nodeOk ? 'env.nodeReady' : 'env.nodeOld', { version: env.nodeVersion }),
-      on: env.nodeOk,
-      title: env.nodeOk ? undefined : t('env.nodeHint'),
-    });
-  }
-  // 管理员标记（单窗口后从标题栏移到工具条）
-  if (env.isAdmin) {
-    chips.push({ key: 'admin', text: t('app.admin'), on: true });
-  }
-  return chips;
-});
+
 
 function sourceIcon(source: SourceKind): string {
   return SOURCE_ICON[source] ?? ICON.package;
@@ -298,9 +277,11 @@ async function doCheck(): Promise<void> {
       ignoredCount.value > 0 ? { count: ignoredCount.value } : undefined,
     );
 
-    // 异步拉取应用图标（首次会触发 PowerShell 扫描注册表，5~10s）
+    // 图标：已命中内置图标的项无需被动获取，只把其余项交给后端
+    // （首次会触发 PowerShell 扫描注册表，5~10s）
     try {
-      const icons = await invoke<Record<string, string>>('fetch_icons', { items: found });
+      const needIcons = found.filter((i) => !matchBuiltinIcon(i));
+      const icons = await invoke<Record<string, string>>('fetch_icons', { items: needIcons });
       if (icons && Object.keys(icons).length > 0) {
         for (const item of items.value) {
           if (icons[item.id]) item.icon = icons[item.id];
@@ -500,15 +481,6 @@ onMounted(async () => {
     isAutostart.value = false;
   }
 
-  // 环境探测（不阻塞主界面）
-  void invoke<EnvStatus>('detect_env')
-    .then((env) => {
-      lastEnv.value = env;
-    })
-    .catch(() => {
-      /* 环境探测失败不阻塞主界面 */
-    });
-
   // 自动检查更新
   // - 开机自启动模式：无论 autoCheck 设置如何，都静默检查
   // - 正常启动模式：仅当用户开启 autoCheck 时自动检查
@@ -568,123 +540,130 @@ async function autostartCheck(): Promise<void> {
 
 <template>
   <main class="view">
-      <div class="toolbar">
-        <div class="env-chips">
-          <span
-            v-for="chip in envChips"
-            :key="chip.key"
-            class="chip"
-            :class="chip.on ? 'on' : 'off'"
-            :title="chip.title"
-            >{{ chip.text }}</span
-          >
-        </div>
-        <div class="toolbar-actions">
-          <button class="btn" type="button" :disabled="busy" @click="doCheck">
-            <span class="btn-spinner" v-show="busy"></span>
-            <span v-html="ICON.refresh"></span>
-            <span>{{ busy ? $t('btn.checking') : $t('btn.check') }}</span>
-          </button>
-          <button
-            ref="btnSel"
-            class="btn btn-primary"
-            type="button"
-            :disabled="busy || selectedCount === 0"
-            @click="doUpdateSelected"
-          >
-            {{ $t('btn.updateSelectedCount', { count: selectedCount }) }}
-          </button>
-          <button
-            class="btn btn-primary"
-            type="button"
-            :disabled="busy || visibleItems.length === 0"
-            @click="doUpdateAll"
-          >
-            <span v-html="ICON.download"></span>
-            <span>{{ $t('btn.updateAll') }}</span>
-          </button>
-        </div>
+    <header class="updates-head">
+      <div class="head-text">
+        <h1 class="head-title">{{ headTitle }}</h1>
+        <p class="head-sub">
+          <span>{{ statusLeftText }}</span>
+          <span v-if="statusRightText" ref="statusRightEl" class="head-sub-extra">
+            · {{ statusRightText }}
+          </span>
+        </p>
       </div>
-
-      <div class="progress-wrap" v-show="progress.visible">
-        <div class="progress-bar">
-          <div
-            class="progress-fill"
-            :key="progressFillKey"
-            :class="{ done: progress.done }"
-            :style="{ width: progress.pct + '%' }"
-          ></div>
-        </div>
-        <span class="progress-text">{{ progress.text }}</span>
+      <div class="head-actions">
+        <button class="btn" type="button" :disabled="busy" @click="doCheck">
+          <span class="btn-spinner" v-show="busy"></span>
+          <span v-html="ICON.refresh"></span>
+          <span>{{ busy ? $t('btn.checking') : $t('btn.check') }}</span>
+        </button>
+        <button
+          ref="btnSel"
+          class="btn btn-primary"
+          type="button"
+          :disabled="busy || selectedCount === 0"
+          @click="doUpdateSelected"
+        >
+          {{ $t('btn.updateSelectedCount', { count: selectedCount }) }}
+        </button>
+        <button
+          class="btn btn-primary"
+          type="button"
+          :disabled="busy || visibleItems.length === 0"
+          @click="doUpdateAll"
+        >
+          <span v-html="ICON.download"></span>
+          <span>{{ $t('btn.updateAll') }}</span>
+        </button>
       </div>
+    </header>
 
-      <div class="content">
-        <section class="list-pane">
-          <div ref="listScroll" class="list-scroll" :class="{ 'no-anim': !animateItems }">
-            <template v-for="group in groups" :key="group.source">
-              <div class="group" :class="{ 'checked-glow': group.allChecked }">
-                <div class="group-head">
-                  <label class="cb">
-                    <input
-                      type="checkbox"
-                      :checked="group.allChecked"
-                      :indeterminate.prop="group.someChecked"
-                      :aria-label="$t('action.selectAllIn', { group: $t('group.' + group.source) })"
-                      @change="onGroupCheck(group.source, $event)"
-                    />
-                    <span class="box"></span>
-                  </label>
-                  <span class="group-icon" v-html="sourceIcon(group.source)"></span>
-                  <span class="group-title">{{ $t('group.' + group.source) }}</span>
-                  <span class="group-count">{{ group.items.length }}</span>
-                </div>
-                <UpdateItem
-                  v-for="(item, ii) in group.items"
-                  :key="item.id"
-                  :item="item"
-                  :checked="checked.has(item.id)"
-                  :failed="failedIds.has(item.id)"
-                  :style="itemDelay(group.startIndex + ii)"
-                  @toggle="onItemToggle"
-                  @ignore-version="onIgnoreVersion"
-                  @ignore-forever="onIgnoreForever"
-                  @view-log="jumpToLog"
-                />
-              </div>
-            </template>
+    <div class="progress-wrap" v-show="progress.visible">
+      <div class="progress-bar">
+        <div
+          class="progress-fill"
+          :key="progressFillKey"
+          :class="{ done: progress.done }"
+          :style="{ width: progress.pct + '%' }"
+        ></div>
+      </div>
+      <span class="progress-text">{{ progress.text }}</span>
+    </div>
+
+    <div class="updates-body">
+      <div ref="listScroll" class="list-scroll" :class="{ 'no-anim': !animateItems }">
+        <section v-for="group in groups" :key="group.source" class="source-block">
+          <div class="source-head">
+            <span class="source-icon" v-html="sourceIcon(group.source)"></span>
+            <span class="source-title">{{ $t('group.' + group.source) }}</span>
+            <span class="source-count">{{ group.items.length }}</span>
+            <label
+              class="cb source-check"
+              :title="$t('action.selectAllIn', { group: $t('group.' + group.source) })"
+            >
+              <input
+                type="checkbox"
+                :checked="group.allChecked"
+                :indeterminate.prop="group.someChecked"
+                :aria-label="$t('action.selectAllIn', { group: $t('group.' + group.source) })"
+                @change="onGroupCheck(group.source, $event)"
+              />
+              <span class="box"></span>
+            </label>
           </div>
-          <div v-if="emptyState" class="pane-empty">
-            <div class="empty-inner">
-              <span class="empty-icon" :class="{ spin: emptyState.spin }" v-html="emptyState.icon"></span>
-              <span class="empty-text">{{ $t(emptyState.key, emptyState.vars ?? {}) }}</span>
-            </div>
+          <div class="card-grid">
+            <UpdateItem
+              v-for="(item, ii) in group.items"
+              :key="item.id"
+              :item="item"
+              :checked="checked.has(item.id)"
+              :failed="failedIds.has(item.id)"
+              :style="itemDelay(group.startIndex + ii)"
+              @toggle="onItemToggle"
+              @ignore-version="onIgnoreVersion"
+              @ignore-forever="onIgnoreForever"
+              @view-log="jumpToLog"
+            />
           </div>
         </section>
-
-        <aside class="log-pane">
-          <div class="pane-head">
-            <span>{{ $t('log.title') }}</span>
-            <button class="mini-btn" type="button" @click="clearLog">{{ $t('btn.clearLog') }}</button>
-          </div>
-          <div ref="logBody" class="log-body" :class="{ 'log-flash': logFlashing }">
-            <div
-              v-for="(line, i) in logLines"
-              :key="i"
-              class="log-card"
-              :class="'lv-' + line.level"
-            >
-              <span class="log-time">{{ line.at }}</span>
-              <span class="log-badge">{{ LOG_BADGE[line.level] ?? 'LOG' }}</span>
-              <span class="log-text">{{ line.text }}</span>
-            </div>
-          </div>
-        </aside>
       </div>
 
-      <footer class="statusbar" role="status" aria-live="polite">
-        <span>{{ statusLeftText }}</span>
-        <span ref="statusRightEl" class="stat-right">{{ statusRightText }}</span>
-      </footer>
+      <div v-if="emptyState" class="pane-empty">
+        <div class="empty-inner">
+          <span class="empty-icon" :class="{ spin: emptyState.spin }" v-html="emptyState.icon"></span>
+          <span class="empty-text">{{ $t(emptyState.key, emptyState.vars ?? {}) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="log-panel" :class="{ collapsed: logCollapsed }">
+      <header class="log-head">
+        <button
+          class="log-toggle"
+          type="button"
+          :aria-label="$t('log.toggle')"
+          :aria-expanded="!logCollapsed"
+          @click="logCollapsed = !logCollapsed"
+        >
+          <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M3 4.5l3 3 3-3" />
+          </svg>
+        </button>
+        <span class="log-title">{{ $t('log.title') }}</span>
+        <span class="log-count">{{ logLines.length }}</span>
+        <button class="mini-btn" type="button" @click="clearLog">{{ $t('btn.clearLog') }}</button>
+      </header>
+      <div v-show="!logCollapsed" ref="logBody" class="log-body" :class="{ 'log-flash': logFlashing }">
+        <div
+          v-for="(line, i) in logLines"
+          :key="i"
+          class="log-line"
+          :class="'lv-' + line.level"
+        >
+          <span class="log-time">{{ line.at }}</span>
+          <span class="log-badge">{{ LOG_BADGE[line.level] ?? 'LOG' }}</span>
+          <span class="log-text">{{ line.text }}</span>
+        </div>
+      </div>
+    </section>
   </main>
 </template>
-
