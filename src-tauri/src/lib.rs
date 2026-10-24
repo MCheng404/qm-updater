@@ -203,7 +203,8 @@ async fn start_update(app: AppHandle, items: Vec<UpdateItem>) -> Result<Vec<Item
 #[tauri::command]
 async fn open_settings(app: AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
+        #[cfg(desktop)]
+        { let _ = window.unminimize(); }
         let _ = window.show();
         let _ = window.set_focus();
     }
@@ -214,7 +215,8 @@ async fn open_settings(app: AppHandle) {
 #[tauri::command]
 async fn open_about(app: AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
+        #[cfg(desktop)]
+        { let _ = window.unminimize(); }
         let _ = window.show();
         let _ = window.set_focus();
     }
@@ -514,6 +516,7 @@ fn fit_to_work_area(window: &WebviewWindow) {
 
         // 若算出来低于窗口最小尺寸，Tauri 会自动夹回最小值（尽力而为）
         let _ = window.set_size(LogicalSize::new(w, h));
+        #[cfg(desktop)]
         let _ = window.center();
 
         if !was_visible {
@@ -522,8 +525,14 @@ fn fit_to_work_area(window: &WebviewWindow) {
     }
 }
 
+// mobile（Android/iOS）入口要求 run 无参，桌面入口保留 autostart 参数
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run(autostart: bool) {
+pub fn run() {
+    run_with_options(false)
+}
+
+/// 桌面主程序入口（main.rs 调用，可传 --autostart）
+pub fn run_with_options(autostart: bool) {
     // 必须在建窗口之前把上次选的字体读回内存，否则字体协议会先返回 404
     font::restore();
     // 同理：setup 阶段就会产出日志文案（"已加载 N 个系统字体"），

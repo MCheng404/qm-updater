@@ -88,5 +88,5 @@ fn main() {
 
     enable_gpu_acceleration();
     let autostart = is_autostart_mode();
-    qm_updater_lib::run(autostart)
+    qm_updater_lib::run_with_options(autostart)
 }

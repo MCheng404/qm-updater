@@ -123,6 +123,7 @@ pub fn show_toast(app: &AppHandle, title: &str, body: &str, level: &str) -> Resu
     // layout 在隐藏状态下拿不到显示器时会自行跳过，前端随后用 layout_notify 校正。
     let _ = layout(&window, &prefs.position, NOTIFY_BASE_H);
 
+    #[cfg(desktop)]
     let _ = window.unminimize();
     let _ = window.show();
 
