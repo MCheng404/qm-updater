@@ -68,9 +68,11 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      # 测试版不捆绑安装包，只出 x64 便携包；package.version 由 --config 动态覆盖
+      # 测试版不捆绑安装包，只出 x64 便携包；version 由 --config 动态覆盖
+      # ⚠️ Tauri v2 配置 schema 顶层直接是 version（没有 v1 的 package 对象），
+      # 之前用 {"package":{...}} 被拒：Additional properties are not allowed ('package' was unexpected)
       - name: Build x64 portable
-        run: npm run tauri -- build --no-bundle --config '{"package":{"version":"${{ steps.rel.outputs.version }}"},"build":{"beforeBuildCommand":null}}'
+        run: npm run tauri -- build --no-bundle --config '{"version":"${{ steps.rel.outputs.version }}","build":{"beforeBuildCommand":null}}'
 
       - name: Rename portable
         run: |
