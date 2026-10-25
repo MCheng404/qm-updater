@@ -6,93 +6,87 @@
 
 **[简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | English**
 
-A desktop tool for unified software updates across npm, winget, pip, and OpenClaw. Built with Tauri 2 + Rust + TypeScript. Lightweight, fast, and seamless.
+One repository, two platforms: a unified software updater for **Windows desktop** and **Android**.
+
+- **Desktop** (Tauri 2 + Rust + TypeScript): unified update checks across npm / winget / pip / OpenClaw.
+- **Android** (Kotlin + Compose, `android/`): multi-source app updates with Root / Shizuku silent install.
+
+Version numbers of both platforms stay in sync — one Git tag (`vX.Y.Z`) publishes both in a single GitHub Release.
 
 ## Features
 
-- 🔄 **Four-source unified update check** — Simultaneously check npm global packages, winget software, pip Python packages, and OpenClaw
+### Desktop (Windows)
+
+- 🔄 **Four-source unified update check** — npm global packages, winget software, pip Python packages, and OpenClaw
 - 📢 **Dual-mode notifications** — In-app acrylic notifications + Windows system notifications, with customizable position and duration
 - 🎨 **Theme customization** — Light / Dark / System follow, 6 color presets, custom accent color / text color / background opacity / corner radius
 - 🌍 **Multi-language support** — Simplified Chinese / English, switch in settings
 - 🚫 **Ignore management** — Ignore this version (auto-recovers after version change) / Ignore forever (blacklist, removable)
 - ⚡ **Auto-start on boot** — Optional auto-start + auto-check on startup, with customizable delay for network authentication (e.g. campus Wi-Fi)
-- 🖋️ **Font customization** — Built-in LXGW Neo XiHei Plus / Inter / JetBrains Mono; change the UI font from the system font list, a directory, or a single font file, with tiered size scaling
-- 📄 **Daily logs** — Logs written to disk per day, open with one click from Settings; click a failed item to jump straight to its log
-- 🔍 **HiDPI aware** — Windows auto-fit to the monitor work area under system DPI scaling
+- 🖋️ **Font customization** — Built-in LXGW Neo XiHei Plus / Inter / JetBrains Mono; change the UI font from the system font list, a directory, or a single font file
+- 📄 **Daily logs** — Logs written to disk per day, open with one click from Settings
 - 🪟 **About window** — Software intro, GitHub links, check for updates
 - 🖥️ **Dual architecture support** — x64 and ARM64 independent builds
 
-## Tech Stack
+### Android (`android/`)
 
-- **Frontend**: Vue 3 + TypeScript + Vite + Pinia + vue-i18n (native CSS, no UI component library)
-- **Backend**: Rust + Tauri 2
-- **UI**: solid layered surfaces, large radii, floating cards, unified motion
-- **Packaging**: NSIS installer
+- 🔍 **Multi-source updates** — APKPure / Aurora / GitHub release aggregation, batch update check
+- 🔐 **Silent install** — Root / Shizuku direct install without confirmation; session-based split-APK (xapk) support
+- 🛡️ **Fake Google Play install source** — records `com.android.vending` as installer on silent install to bypass "install from Google Play" source checks (configurable; does not bypass Play Integrity)
+- 🔔 **Progress notifications** — download / install progress bar in the notification shade, failure details in the notification
+- 🧹 **Auto cleanup** — cached APK files, installed package cleanup
 
 ## Installation
 
-### Download
+Go to the [Releases](https://github.com/MCheng404/qm-updater/releases) page. One release contains both platforms:
 
-Go to the [Releases](https://github.com/MCheng404/qm-updater/releases) page and download the latest version:
+| Platform | Files |
+|----------|-------|
+| Windows x64 | `qm-updater-<version>-x64-setup.exe` (installer) / `qm-updater-x64.exe` (portable) |
+| Windows ARM64 | `qm-updater-<version>-arm64-setup.exe` (installer) / `qm-updater-arm64.exe` (portable) |
+| Android | `qm-updater-<version>.apk` (signed APK, minSdk 26) |
 
-| Architecture | Installer | Portable |
-|--------------|-----------|----------|
-| x64 (Intel/AMD) | `qm-updater-<version>-x64-setup.exe` | `qm-updater-x64.exe` |
-| ARM64 (Snapdragon) | `qm-updater-<version>-arm64-setup.exe` | `qm-updater-arm64.exe` |
-
-> Not sure which architecture? Open **Settings → System → About** and check **System type**.
-
-### Build from source
+## Build from source
 
 ```bash
-# Install dependencies
+# ---- Desktop (Windows, requires Rust + Node + VS Build Tools) ----
 npm install
+npm run tauri:dev          # development mode
+npm run tauri:build        # x64 release
+npm run tauri:build -- --target aarch64-pc-windows-msvc   # ARM64 release
 
-# Development mode
-npm run tauri:dev
-
-# Build x64 release
-npm run tauri:build
-
-# Build ARM64 release
-npm run tauri:build -- --target aarch64-pc-windows-msvc
+# ---- Android (requires JDK 17 + Android SDK, Gradle wrapper included) ----
+cd android
+./gradlew :app:assembleDebug     # debug APK
+BUILD_VERSION=2.4.0 ./gradlew :app:assembleRelease    # release (BUILD_VERSION → versionName)
 ```
 
 ## Project Structure
 
 ```
-├── src/                    # Frontend source (Vue 3)
-│   ├── App.vue            # Single-window shell: titlebar + sidebar + view switch
-│   ├── entries/           # Entry points: main (main window) / notify (toast overlay)
-│   ├── views/             # Views: MainView / SettingsView / AboutView / NotifyView
-│   ├── components/        # Shared components: TitleBar / UpdateItem / ToastCard
-│   ├── app/               # Shared layer
-│   │   ├── i18n.ts        # vue-i18n instance
-│   │   ├── locales/       # zh-CN / en-US message packs
-│   │   ├── theme.ts       # Theme system
-│   │   ├── font.ts        # Font settings
-│   │   ├── app-settings.ts# App settings
-│   │   ├── stores.ts      # Pinia stores (theme / app settings)
-│   │   ├── shared.ts      # Shared plugin and cross-window sync
-│   │   ├── icons.ts       # Inline vector icons
-│   │   └── types.ts       # Shared frontend/backend types
-│   └── styles.css         # Global styles
-├── src-tauri/             # Rust backend
-│   ├── src/
-│   │   ├── main.rs        # Entry point
-│   │   ├── lib.rs         # Command registration
-│   │   ├── font.rs        # System font enumeration / custom fonts
-│   │   ├── logfile.rs     # Daily log persistence
-│   │   ├── sources/       # Update sources
-│   │   │   ├── npm.rs
-│   │   │   ├── winget.rs
-│   │   │   ├── pip.rs
-│   │   │   └── openclaw.rs
-│   │   └── ...
-│   └── tauri.conf.json    # Tauri configuration
-├── index.html             # Main window (contains Updates / Settings / About views)
-└── notify.html            # Toast overlay window
+├── src/                    # Desktop frontend (Vue 3)
+│   ├── views/             # MainView / SettingsView / AboutView / NotifyView
+│   ├── components/        # TitleBar / UpdateItem / ToastCard
+│   └── app/               # i18n / theme / font / settings / stores / icons
+├── src-tauri/             # Desktop Rust backend (Tauri 2)
+│   └── src/
+│       ├── main.rs / lib.rs
+│       ├── font.rs / logfile.rs
+│       └── sources/       # npm.rs / winget.rs / pip.rs / openclaw.rs
+├── android/               # Android app (Kotlin + Compose, independent Gradle project)
+│   ├── app/src/main/kotlin/com/qm/updater/
+│   │   ├── repository/    # updates / search / GitHub release checks
+│   │   ├── viewmodel/     # install flow, notifications
+│   │   ├── util/          # Downloader / RootInstaller / SessionInstaller
+│   │   └── ui/            # Compose screens
+│   └── gradle/            # Gradle wrapper 9.7.1 (mirrored)
+├── .github/workflows/     # release.yml: tag → desktop + Android same-version Release
+└── scripts/               # version sync helpers
 ```
+
+## CI / Release
+
+Push a `vX.Y.Z` tag (or trigger `workflow_dispatch` manually): [release.yml](.github/workflows/release.yml) builds the desktop installer/portable (x64 + ARM64, optional Authenticode signing) and the Android release APK in parallel, then publishes **one Release with both platforms** under the same version number. `SHA256SUMS.txt` at the release root covers all 5 artifacts.
 
 ## License
 

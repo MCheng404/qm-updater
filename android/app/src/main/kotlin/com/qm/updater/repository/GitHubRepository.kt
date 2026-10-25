@@ -40,9 +40,9 @@ class GitHubRepository(
         /** 单个仓库的硬超时。 */
         private const val CHECK_DEADLINE_MS = 20_000L
 
-        /** 自身更新指向本仓库，而不是上游 / 电脑端那个。 */
+        /** 自身更新指向本仓库（monorepo：安卓端在 android/ 子目录）。 */
         const val SELF_REPO_OWNER = "MCheng404"
-        const val SELF_REPO_NAME = "qm-updater-android"
+        const val SELF_REPO_NAME = "qm-updater"
 
         /** 安卓发布使用的标签前缀，例如 `app-v3.2.0`。 */
         const val SELF_TAG_PREFIX = "app-v"
@@ -126,7 +126,7 @@ class GitHubRepository(
      *
      * 原来查的是**上游** rumboalla/apkupdater —— 那是电脑端那条线，与安卓端无关
      * （用户明确要求不要再查那边，那边已另行修复）。
-     * 现在改为查**本项目自己的安卓发布**：`MCheng404/qm-updater-android` 里的 `app-v*` 标签。
+     * 现在改为查**本项目自己的安卓发布**：`MCheng404/qm-updater`（android/ 子目录）里的 `app-v*` 标签。
      *
      * 标签形如 `app-v3.2.0`，**不含 versionCode**，所以不能沿用上游那套
      * `getVersions("1.2.3 (52)")` 的解析，也不能用 versionCode 判新旧 ——

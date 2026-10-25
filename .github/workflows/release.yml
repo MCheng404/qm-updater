@@ -2,7 +2,7 @@ name: Release
 
 # 推一个 vX.Y.Z 的 tag 即触发：云端并行构建双端产物并发布到同一个 GitHub Release：
 #   - Windows 桌面：x64 + ARM64 的「安装包 + 便携包」、（可选）Authenticode 签名
-#   - Android：独立安卓端（MCheng404/qm-updater-android，Kotlin+Compose，app 分支）
+#   - Android：同仓库 android/ 子目录（Kotlin+Compose，monorepo 合并）
 #     release APK；签名读取本仓库 secrets KEYSTORE / PROPERTIES（缺失回落 debug 签名）
 # 双端版本号同源：tag → versionName=X.Y.Z（桌面同步 package.json/Cargo.toml/tauri.conf.json/
 # AboutView 4 处；安卓由 BUILD_VERSION 注入），versionCode 由 tag 派生（X*10000+Y*100+Z）。
@@ -198,7 +198,7 @@ jobs:
             SHA256SUMS.txt
           if-no-files-found: error
 
-  # ================= Android 构建（独立安卓端 onekey-updater，Kotlin+Compose） =================
+  # ================= Android 构建（本仓库 android/ 子目录，Kotlin+Compose） =================
   # 与桌面端同 tag（vX.Y.Z）、同一 Release：versionName 由 tag 注入（BUILD_VERSION=X.Y.Z），
   # versionCode 由 tag 派生（X*10000+Y*100+Z），双端版本号同源。
   # 签名：读取 qm-updater 仓库 secrets KEYSTORE / PROPERTIES（与安卓端仓库同名，内容格式一致：
@@ -214,7 +214,7 @@ jobs:
       KEYSTORE: ${{ secrets.KEYSTORE }}
       PROPERTIES: ${{ secrets.PROPERTIES }}
     steps:
-      - name: Checkout qm-updater
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Java 17
@@ -235,21 +235,14 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "发布版本：$v"
 
-      - name: Checkout Android app (qm-updater-android)
-        uses: actions/checkout@v4
-        with:
-          repository: MCheng404/qm-updater-android
-          ref: app
-          path: android-app
-
       # 签名 secrets：有才解码；缺失时安卓端 signingConfig 自动回落 debug（build.gradle.kts try/catch）
       - name: Decode keystore
         if: env.KEYSTORE != ''
-        run: echo "$KEYSTORE" | base64 --decode > android-app/app/ci.ks
+        run: echo "$KEYSTORE" | base64 --decode > android/app/ci.ks
 
       - name: Decode signing properties
         if: env.PROPERTIES != ''
-        run: echo "$PROPERTIES" | base64 --decode > android-app/local.properties
+        run: echo "$PROPERTIES" | base64 --decode > android/local.properties
 
       - name: Build Android APK (release)
         env:
@@ -262,17 +255,17 @@ jobs:
           vc=$(( major * 10000 + minor * 100 + patch ))
           echo "BUILD_NUMBER=$vc" >> "$GITHUB_ENV"
           echo "versionName=$v, versionCode=$vc"
-          cd android-app
+          cd android
           ./gradlew :app:assembleRelease
 
       - name: Collect Android artifacts
         run: |
           v="${{ steps.rel.outputs.version }}"
-          APK=$(ls android-app/app/build/outputs/apk/release/*.apk | head -1)
+          APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
           mkdir -p dist-android
-          cp "$APK" "dist-android/onekey-updater-$v.apk"
+          cp "$APK" "dist-android/qm-updater-$v.apk"
           cd dist-android
-          sha256sum onekey-updater-*.apk > SHA256SUMS-android.txt
+          sha256sum qm-updater-*.apk > SHA256SUMS-android.txt
           ls -la
           cat SHA256SUMS-android.txt
 
@@ -339,7 +332,7 @@ jobs:
             # desktop artifact 的上传 path 是分散 glob，zip 内保留 workspace 根相对路径
             # （src-tauri/target/...），下载后 exe 在深层子目录，必须用 ** 匹配
             desktop-artifacts/**/*.exe
-            android-artifacts/onekey-updater-*.apk
+            android-artifacts/qm-updater-*.apk
             SHA256SUMS.txt
           draft: false
           prerelease: false

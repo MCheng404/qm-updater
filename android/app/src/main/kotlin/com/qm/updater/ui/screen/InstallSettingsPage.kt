@@ -136,7 +136,7 @@ fun AboutContent() {
 }
 
 internal const val UPSTREAM_URL = "https://github.com/rumboalla/apkupdater"
-internal const val PROJECT_URL = "https://github.com/MCheng404/qm-updater-android"
+internal const val PROJECT_URL = "https://github.com/MCheng404/qm-updater"
 
 internal fun versionText(): String = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
 
