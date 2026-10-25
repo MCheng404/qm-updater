@@ -80,7 +80,7 @@
     <string name="diagnostics_group_github">GitHub 線路</string>
     <string name="diagnostics_group_fdroid">F-Droid 鏡像</string>
     <string name="diagnostics_group_source">第三方來源</string>
-    <string name="diagnostics_usable_count">%2$s 條中 %1$s 條可用</string>
+    <string name="diagnostics_usable_count">%2$d 條中 %1$d 條可用</string>
     <string name="diagnostics_fastest">最快：%1$s · %2$d 毫秒</string>
     <string name="diagnostics_none_usable">本組無可用線路</string>
     <string name="diagnostics_more_hidden">另有 %1$d 條未顯示（依延遲排序，僅列出最快的）</string>
