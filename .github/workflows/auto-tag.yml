@@ -21,6 +21,9 @@ concurrency:
 
 permissions:
   contents: write
+  # workflow_dispatch 触发需要 actions: write —— 之前只有 contents: write，
+  # runner 内 gh workflow run 报 HTTP 403 "Resource not accessible by integration"
+  actions: write
 
 jobs:
   auto-tag:
