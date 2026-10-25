@@ -1,6 +1,6 @@
 [package]
 name = "qm-updater"
-version = "2.1.0"
+version = "2.4.1"
 description = "QM Updater：统一管理 npm / winget / pip / OpenClaw 软件更新"
 authors = ["Cookies"]
 edition = "2021"

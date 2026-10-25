@@ -22,7 +22,7 @@ const GITHUB_REPO = 'https://github.com/MCheng404/qm-updater';
 /** GitHub Releases 列表（需要多条才能筛出桌面版，故用列表接口而非 /latest） */
 const REPO_API = 'https://api.github.com/repos/MCheng404/qm-updater/releases?per_page=20';
 
-const version = ref('2.1.0');
+const version = ref('2.4.1');
 const arch = ref('x64');
 const platform = ref('Windows');
 const checking = ref(false);

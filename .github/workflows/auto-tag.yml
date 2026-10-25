@@ -1,9 +1,15 @@
 name: Auto Tag
 
-# 每次推送到发版分支时，自动按 package.json 的 version 打 vX.Y.Z tag，
-# 并显式 dispatch release.yml（GITHUB_TOKEN 推 tag 不会触发 on:push workflow）。
-# 版本号是唯一权威：发版只需 bump package.json 的 version 后 push；
-# 版本未变化时对应 tag 已存在，本工作流自动跳过，不会重复发版。
+# 每次推送到发版分支时自动打 tag 并触发发布，双档版本号动态获取：
+#   - 正式版：package.json 的 version 对应 vX.Y.Z tag 不存在 → 打正式 tag + dispatch
+#     release.yml，版本号 = 正式版本号（tag / package.json）
+#   - 测试版：正式 tag 已存在（版本未 bump）→ 打 vX.Y.Z-build.<run_number> tag +
+#     dispatch test-build.yml，版本号 = CI 编号（run_number），发布为 prerelease
+# ⚠️ 两处关键约束：
+#   - GITHUB_TOKEN 推送的 tag 不触发 on:push workflow（GitHub 防递归），必须显式
+#     dispatch —— workflow_dispatch 是 GITHUB_TOKEN 可触发的例外事件
+#   - dispatch 的 ref 必须用分支名（refactor/vue-frontend）：裸 tag 名会被 gh 解析成
+#     refs/heads/<tag>（不存在）→ HTTP 422 "does not have workflow_dispatch"
 on:
   push:
     branches:
@@ -31,21 +37,22 @@ jobs:
           v=$(node -p "require('./package.json').version")
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "tag=v$v" >> "$GITHUB_OUTPUT"
-          echo "resolved tag: v$v"
+          echo "resolved release tag: v$v"
 
-      - name: Check whether tag already exists
+      - name: Check whether release tag already exists
         id: chk
         run: |
           tag="v${{ steps.ver.outputs.version }}"
           if git ls-remote --exit-code origin "refs/tags/$tag" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "tag $tag already exists, skip (version unchanged)"
+            echo "release tag $tag exists -> test build (CI number)"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "tag $tag does not exist, will create"
+            echo "release tag $tag missing -> release build (official version)"
           fi
 
-      - name: Create and push tag
+      # ===== 正式版：版本 bump 后推送，打 vX.Y.Z 并触发正式发布 =====
+      - name: Create and push release tag
         if: steps.chk.outputs.exists == 'false'
         run: |
           git config user.name "github-actions[bot]"
@@ -53,10 +60,27 @@ jobs:
           git tag -a "v${{ steps.ver.outputs.version }}" -m "Release v${{ steps.ver.outputs.version }}"
           git push origin "v${{ steps.ver.outputs.version }}"
 
-      # ⚠️ GITHUB_TOKEN 推送的 tag 不会触发 on:push 的 workflow（GitHub 防递归策略），
-      # 因此必须显式 dispatch release.yml —— workflow_dispatch 是 GITHUB_TOKEN
-      # 唯一可触发的例外事件。传 tag 参数，ref 指向刚推送的 tag。
       - name: Dispatch release workflow
         if: steps.chk.outputs.exists == 'false'
         run: |
-          gh workflow run release.yml -f "tag=v${{ steps.ver.outputs.version }}" -r "v${{ steps.ver.outputs.version }}"
+          gh workflow run release.yml -f "tag=v${{ steps.ver.outputs.version }}" -r "refactor/vue-frontend"
+
+      # ===== 测试版：版本未 bump，打 vX.Y.Z-build.<run_number> 并触发测试构建发布 =====
+      - name: Create and push test tag
+        if: steps.chk.outputs.exists == 'true'
+        env:
+          RUN_NO: ${{ github.run_number }}
+        run: |
+          ttag="v${{ steps.ver.outputs.version }}-build.${{ github.run_number }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$ttag" -m "Test build $ttag"
+          git push origin "$ttag"
+          echo "test tag: $ttag"
+
+      - name: Dispatch test build workflow
+        if: steps.chk.outputs.exists == 'true'
+        env:
+          RUN_NO: ${{ github.run_number }}
+        run: |
+          gh workflow run test-build.yml -f "tag=v${{ steps.ver.outputs.version }}-build.${{ github.run_number }}" -r "refactor/vue-frontend"

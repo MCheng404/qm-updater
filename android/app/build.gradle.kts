@@ -24,19 +24,30 @@ android {
     val buildNumber = System.getenv("BUILD_NUMBER").orEmpty()
     val buildVersion = System.getenv("BUILD_VERSION").orEmpty()
 
-    // 版本号双端同源：本地构建默认从仓库根 package.json 读取（CI 由 tag 注入
-    // BUILD_VERSION / BUILD_NUMBER 优先，见 .github/workflows/release.yml），
-    // 与桌面端共用唯一版本源，消除此前写死的 versionCode=66 / versionName=3.8.0 错位。
+    // 版本号双端同源、全程动态获取，杜绝写死：
+    //  - versionName 优先级：BUILD_VERSION（CI 注入：正式=tag 版本 / 测试=正式版本-build.编号）
+    //      > 仓库根 package.json（唯一版本源）> 兜底字面量
+    //  - versionCode 优先级：BUILD_NUMBER（CI 注入：正式=tag 派生 / 测试=CI run 编号）
+    //      > git 提交计数（本地构建每次提交自动递增，修复"版本号永远不变"）
+    //      > 由版本号派生 X*10000+Y*100+Z
     val pkgVersion = try {
         Regex("\"version\"\\s*:\\s*\"([^\"]+)\"").find(file("../../package.json").readText())?.groupValues?.get(1)
     } catch (_: Exception) { null }
-    // versionName：BUILD_VERSION（CI tag 注入）> package.json > 兜底字面量
+    val gitCommitCount = try {
+        val proc = ProcessBuilder("git", "rev-list", "--count", "HEAD")
+            .directory(file("../..")).redirectErrorStream(false).start()
+        proc.inputStream.bufferedReader().readText().trim().takeIf { it.isNotEmpty() }?.toInt()
+    } catch (_: Exception) { null }
+
     val releaseVersion = buildVersion.ifEmpty { pkgVersion ?: "2.1.0" }
-    // versionCode：BUILD_NUMBER（CI 由 tag 派生 X*10000+Y*100+Z）> 本地由版本号同规则派生
-    val releaseCode = if (buildNumber.isEmpty()) {
-        val p = releaseVersion.split(".").map { it.toIntOrNull() ?: 0 }
-        p.getOrElse(0) { 0 } * 10000 + p.getOrElse(1) { 0 } * 100 + p.getOrElse(2) { 0 }
-    } else buildNumber.toInt()
+    val releaseCode = when {
+        buildNumber.isNotEmpty() -> buildNumber.toInt()
+        gitCommitCount != null && gitCommitCount > 0 -> gitCommitCount
+        else -> {
+            val p = releaseVersion.split(".").map { it.toIntOrNull() ?: 0 }
+            p.getOrElse(0) { 0 } * 10000 + p.getOrElse(1) { 0 } * 100 + p.getOrElse(2) { 0 }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.qm.updater" + System.getenv("BUILD_TAG").orEmpty()
