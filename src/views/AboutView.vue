@@ -167,27 +167,40 @@ onMounted(() => {
       <div class="about-hero">
         <div class="about-logo">
           <!-- :key 保证每次进入都重建 → 绘制动画重播；reduce-motion 下直接呈现完成态 -->
+          <!-- 与 Android 端应用图标同款：黄/青双环交织（两个圆孔镂空），round 线帽无直角 -->
           <svg :key="drawKey" class="about-logo-svg" viewBox="0 0 64 64" width="56" height="56" fill="none">
-            <circle
-              class="logo-ring"
-              cx="32"
-              cy="32"
-              r="28"
-              stroke="var(--accent)"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              opacity="0.6"
-            />
             <path
-              class="logo-check"
-              d="M20 34l8 8 16-18"
-              pathLength="1"
-              stroke="var(--accent)"
-              stroke-width="3.5"
+              class="icon-seg seg-a2"
+              d="M46.55 46.55A12 20 0 0 1 17.45 17.45"
+              stroke="var(--warn)"
+              stroke-width="6.5"
               stroke-linecap="round"
               stroke-linejoin="round"
             />
-            <circle class="logo-dot" cx="32" cy="32" r="4" fill="var(--accent)" opacity="0.8" />
+            <path
+              class="icon-seg seg-b1"
+              d="M17.45 17.45A20 12 0 0 0 46.55 46.55"
+              stroke="var(--accent)"
+              stroke-width="6.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              class="icon-seg seg-a1"
+              d="M46.55 46.55A12 20 0 0 0 17.45 17.45"
+              stroke="var(--warn)"
+              stroke-width="6.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              class="icon-seg seg-b2"
+              d="M17.45 17.45A20 12 0 0 1 46.55 46.55"
+              stroke="var(--accent)"
+              stroke-width="6.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
           </svg>
         </div>
         <h1 class="about-app-name">{{ $t('about.appName') }}</h1>

@@ -398,51 +398,12 @@ body.reduce-motion *::after {
 }
 
 /* ---- 关于 hero 图标绘制动画 ---- */
-@keyframes ringDraw {
-  from {
-    stroke-dashoffset: 176;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-@keyframes checkDraw {
+@keyframes drawSeg {
   from {
     stroke-dashoffset: 1;
   }
   to {
     stroke-dashoffset: 0;
-  }
-}
-@keyframes dotPop {
-  from {
-    transform: scale(0);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-}
-/* 绘制完成后的柔和呼吸（外圈透明度 / 中心点微缩放） */
-@keyframes ringBreathe {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-@keyframes dotBreathe {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.18);
-    opacity: 0.95;
   }
 }
 /* hero 顶部光晕缓慢漂移（柔和、无直角） */
@@ -1936,23 +1897,23 @@ input[type='range']:active::-webkit-slider-thumb {
   display: block;
 }
 
-/* ---- hero 图标：逐笔"绘制出现" + 柔和呼吸 ---- */
-.about-logo-svg .logo-ring {
-  stroke-dasharray: 176;
-  stroke-dashoffset: 0;
-  animation: ringDraw 0.45s var(--ease) 0.08s both,
-    ringBreathe 4.6s ease-in-out 1s infinite;
-}
-.about-logo-svg .logo-check {
+/* ---- hero 图标：与 Android 端同款双环交织，四段依次"绘制出现" ---- */
+.about-logo-svg .icon-seg {
+  /* 完成态为默认样式：reduce-motion 下禁用动画时图标完整可见 */
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
-  animation: checkDraw 0.38s var(--ease) 0.52s both;
 }
-.about-logo-svg .logo-dot {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: dotPop 0.32s var(--ease-spring) 0.9s both,
-    dotBreathe 3.2s ease-in-out 1.7s infinite;
+.about-logo-svg .seg-a2 {
+  animation: drawSeg 0.3s var(--ease) 0.12s both;
+}
+.about-logo-svg .seg-b1 {
+  animation: drawSeg 0.3s var(--ease) 0.42s both;
+}
+.about-logo-svg .seg-a1 {
+  animation: drawSeg 0.3s var(--ease) 0.72s both;
+}
+.about-logo-svg .seg-b2 {
+  animation: drawSeg 0.3s var(--ease) 1.02s both;
 }
 .about-app-name {
   font-size: var(--t-9);
