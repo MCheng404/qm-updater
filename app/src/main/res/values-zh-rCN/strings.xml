@@ -1,0 +1,269 @@
+<resources>
+    <string name="app_name">一键更新</string>
+    <string name="tab_apps">应用</string>
+    <string name="tab_search">搜索</string>
+    <string name="tab_updates">更新</string>
+    <string name="tab_settings">设置</string>
+    <string name="something_went_wrong">"出了点问题\n\uD83E\uDD26"</string>
+    <string name="ignore_version">忽略该版本</string>
+    <string name="ignore_cd">忽略应用</string>
+    <string name="unignore_cd">取消忽略应用</string>
+    <string name="refresh_updates">查找更新</string>
+    <string name="exclude_system_apps">排除系统应用</string>
+    <string name="include_system_apps">包括系统应用</string>
+    <string name="exclude_app_store">排除应用商店</string>
+    <string name="include_app_store">包括应用商店</string>
+    <string name="exclude_disabled_apps">排除已禁用应用</string>
+    <string name="include_disabled_apps">包括已禁用应用</string>
+    <string name="install_cd">安装应用</string>
+    <string name="app_cd">应用图标</string>
+    <string name="install_success">%1$s 已安装</string>
+    <string name="install_failure">%1$s 安装失败</string>
+
+    <!-- 设置 -->
+    <string name="root_install_not_supported">不支持用Root安装这个app</string>
+    <string name="play_text_animations">播放文字动画</string>
+    <string name="settings_sources">来源</string>
+    <string name="settings_ui">用户界面</string>
+    <string name="settings_alarm">提醒</string>
+    <string name="settings_options">选项</string>
+    <string name="settings_utils">工具</string>
+    <string name="settings_hour">提醒小时</string>
+    <string name="settings_alarm_daily">每日</string>
+    <string name="settings_alarm_3day">3天</string>
+    <string name="settings_alarm_weekly">每周</string>
+    <string name="settings_android_tv_ui">Android TV 界面</string>
+    <string name="ignore_alpha">忽略Alpha版本</string>
+    <string name="ignore_beta">忽略Beta版本</string>
+    <string name="ignore_preRelease">忽略预发布版本</string>
+    <string name="use_safe_stores">使用安全商店(Aptoide)</string>
+    <string name="root_install">Root安装</string>
+    <string name="about">关于</string>
+    <string name="frequency">频率</string>
+    <string name="theme">主题</string>
+    <string name="theme_system">系统</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_light">浅色</string>
+
+    <!-- 通知 -->
+    <string name="about_github">获取源代码、报告错误、请求新功能以及添加翻译。</string>
+    <string name="about_donate">如果你喜欢这个应用程序，请考虑捐赠。</string>
+    <string name="copy_to_clipboard">复制到剪贴板</string>
+    <string name="copy_app_list">复制应用列表</string>
+    <string name="copy_app_logs">复制应用日志</string>
+    <string name="notification_channel_name">更新</string>
+    <string name="notification_channel_description">用于更新通知的通道。</string>
+    <string name="notification_progress_pct">%1$s · %2$d%%</string>
+    <string name="notification_progress_unknown">%1$s · 进行中…</string>
+    <string name="notification_install_failed">安装失败</string>
+    <string name="notification_install_failed_unknown">未知原因</string>
+    <string name="notification_update_title">更新</string>
+    <plurals name="notification_update_description">
+        <item quantity="zero">没有发现更新。</item>
+        <item quantity="one">发现 %1$d 个更新。</item>
+        <item quantity="other">发现 %1$d 个更新。</item>
+    </plurals>
+
+
+    // Miuix UI 重构新增
+    <string name="no_updates">暂无可用更新</string>
+    <string name="no_apps">没有可显示的应用</string>
+    <string name="no_search_results">没有找到结果</string>
+    <string name="search_hint">搜索应用</string>
+    <string name="search_hint_long">至少输入 2 个字符，将在所有已启用的来源中搜索</string>
+    <string name="clear_search">清空</string>
+    <string name="copied">已复制到剪贴板</string>
+    <string name="close">关闭</string>
+    <string name="settings_filter">过滤</string>
+    <string name="source_apkmirror_summary">需要跳转浏览器下载</string>
+    <string name="source_play_summary">实验性功能，需要登录</string>
+    <string name="use_safe_stores_summary">仅使用受信任的 Aptoide 商店</string>
+    <string name="settings_install_mode">安装方式</string>
+    <string name="settings_install_mode_summary">下载完成后以何种方式安装</string>
+    <string name="install_mode_auto">自动（有 Root 则静默）</string>
+    <string name="install_mode_session">系统安装器（每次需确认）</string>
+    <string name="install_mode_root">Root 静默安装（su）</string>
+    <string name="install_mode_note">未获取 Root 时，系统安装器每次都会弹出确认框；获得 Root 后可完全静默安装。XAPK 分卷包必须使用 Root 安装。</string>
+    <string name="root_status">Root 状态</string>
+    <string name="root_granted">已获取 Root 权限</string>
+    <string name="root_denied">Root 授权被拒绝</string>
+    <string name="root_checking">正在申请 Root…</string>
+    <string name="root_unknown">尚未检测，点击申请授权</string>
+    <string name="settings_china_sources">国内网络优化</string>
+    <string name="use_china_mirror">启用国内镜像</string>
+    <string name="use_china_mirror_summary">把官方地址改写为国内可直连的镜像/加速线路</string>
+    <string name="github_proxy">GitHub 加速线路</string>
+    <string name="github_custom_proxy">自定义加速前缀</string>
+    <string name="github_proxy_downloads">加速 GitHub 附件下载</string>
+    <string name="fdroid_mirror">F-Droid 仓库</string>
+    <string name="fdroid_custom_url">自定义 F-Droid 仓库地址</string>
+    <string name="izzy_mirror">IzzyOnDroid 仓库</string>
+    <string name="izzy_custom_url">自定义 IzzyOnDroid 仓库地址</string>
+    <string name="mirror_direct">直连</string>
+    <string name="network_diagnostics">网络诊断</string>
+    <string name="network_diagnostics_summary">逐条实测线路，挑一条能用的</string>
+    <string name="diagnostics_hint">点击开始逐条实测</string>
+    <string name="diagnostics_running">正在实测…</string>
+    <string name="diagnostics_rerun">重新实测</string>
+    <string name="diagnostics_apply_github">使用最快 GitHub 线路</string>
+    <string name="diagnostics_apply_fdroid">使用最快 F-Droid 镜像</string>
+    <string name="diagnostics_no_working_line">没有实测到可用线路</string>
+    <string name="no_download_link">该来源没有提供下载地址</string>
+    <string name="xapk_requires_root">XAPK/APKS 分卷包需要 Root 权限才能静默安装</string>
+    <string name="need_install_permission">请先授予本应用「安装未知应用」权限，然后重试</string>
+
+    // 空状态过滤提示
+    <string name="filter_hint_prefix">注意：已排除</string>
+    <string name="filter_hint_store">应用商店安装的应用</string>
+    <string name="filter_hint_system">系统应用</string>
+    <string name="filter_hint_disabled">已停用的应用</string>
+    <string name="filter_hint_ignored">被忽略的应用</string>
+
+    // 扫描应用数
+    <string name="scanned_apps">已检查 %1$d 个已安装应用</string>
+
+    // 归并后的来源标签
+    <string name="source_with_count">共 %1$d 个来源</string>
+
+    // 更新范围与分段列表
+    <string name="settings_update_scope">更新范围</string>
+    <string name="update_system_apps">允许更新系统应用</string>
+    <string name="update_system_apps_summary">系统应用（含预装后被更新的，如 Chrome / WebView）将参与更新检查。侧载更新系统应用可能失败或导致异常，请谨慎开启。</string>
+    <string name="update_store_apps">包含应用商店安装的应用</string>
+    <string name="update_store_apps_summary">关闭后，由应用商店安装的应用将不参与更新检查</string>
+    <string name="update_scope_note">这两项决定「为哪些应用检查更新」；「应用」页顶部的三个图标只影响该页列表的显示。</string>
+    <string name="section_user_apps">用户应用</string>
+    <string name="section_system_apps">系统应用</string>
+    <string name="system_section_disabled">系统应用未参与检查，可在此开启「设置 → 更新范围 → 允许更新系统应用」</string>
+    <string name="system_section_empty">系统应用暂无可用更新</string>
+
+    // MCP 服务（PC 端 AI Agent 远程控制更新器）
+    <string name="mcp_service">MCP 服务</string>
+    <string name="mcp_enable">启用 MCP 服务</string>
+    <string name="mcp_enable_summary">允许电脑上的 AI Agent 通过本地网络控制本更新器：扫描、查看更新列表、安装、读取日志。</string>
+    <string name="mcp_port">端口</string>
+    <string name="mcp_port_summary">范围 1024–65535，修改后服务会自动重启。</string>
+    <string name="mcp_port_invalid">端口必须在 1024–65535 之间</string>
+    <string name="mcp_allow_lan">允许局域网访问</string>
+    <string name="mcp_allow_lan_summary">绑定到 0.0.0.0，局域网内任意设备都能访问本服务，务必依赖令牌保护。</string>
+    <string name="mcp_token">访问令牌</string>
+    <string name="mcp_token_unset">尚未生成</string>
+    <string name="mcp_token_dialog_title">访问令牌</string>
+    <string name="mcp_token_dialog_summary">任何持有此令牌的人都能控制本更新器，请勿泄露。</string>
+    <string name="mcp_token_copy">复制</string>
+    <string name="mcp_token_regenerate">重新生成</string>
+    <string name="mcp_status_running">运行中</string>
+    <string name="mcp_status_stopped">已停止</string>
+    <string name="mcp_status_error">出错</string>
+    <string name="mcp_adb_hint">在电脑上执行以连接本机：</string>
+
+    // 应用列表权限提示
+    <string name="app_list_permission_title">只读取到很少的应用</string>
+    <string name="app_list_permission_summary">当前只读到 %1$d 个应用。如果你的设备上装了更多应用，说明系统尚未放行「获取已安装的应用信息」权限。请在系统设置中允许后回来下拉刷新。</string>
+    <string name="app_list_permission_action">打开系统设置</string>
+
+    // 网络诊断分组
+    <string name="diagnostics_group_github">GitHub 线路</string>
+    <string name="diagnostics_group_fdroid">F-Droid 镜像</string>
+    <string name="diagnostics_group_source">第三方来源</string>
+    <string name="diagnostics_usable_count">%2$d 条中 %1$d 条可用</string>
+    <string name="diagnostics_fastest">最快：%1$s · %2$d ms</string>
+    <string name="diagnostics_none_usable">本组无可用线路</string>
+    <string name="diagnostics_more_hidden">另有 %1$d 条未显示（按延迟排序，只列最快的）</string>
+
+    // 腾讯应用宝来源
+    <string name="source_tencent">腾讯应用宝</string>
+    <string name="source_tencent_summary">逐包查询（该接口不支持批量），每次扫描最多检查 80 个应用、并发上限 4，避免给公益接口造成压力。</string>
+
+    // 诊断优化线路按钮
+    <string name="diagnostics_optimize">优化线路</string>
+
+    // 代理设置
+    <string name="settings_proxy">代理</string>
+    <string name="proxy_enabled">使用自定义代理</string>
+    <string name="proxy_enabled_summary">更新检查、下载、图标加载全部走该代理。在 HTTP 层统一生效，所有更新源都会遵循。</string>
+    <string name="proxy_type">代理类型</string>
+    <string name="proxy_type_summary">按你的代理服务端选择</string>
+    <string name="proxy_type_http">HTTP</string>
+    <string name="proxy_type_socks">SOCKS</string>
+    <string name="proxy_host">代理主机，例如 127.0.0.1</string>
+    <string name="proxy_port">代理端口</string>
+    <string name="proxy_port_invalid">端口需在 1–65535 之间</string>
+
+    // 关于弹窗
+    <string name="about_version">版本</string>
+    <string name="about_package">包名</string>
+    <string name="about_upstream">上游项目</string>
+    <string name="about_project">项目主页</string>
+    <string name="about_license">开源许可</string>
+    <string name="about_based_on">基于 apkupdater 3.x 重构，遵循 GPL-3.0 许可。</string>
+
+    // Shizuku
+    <string name="shizuku_enable">使用 Shizuku 静默安装</string>
+    <string name="shizuku_enable_summary">没有 Root 时改用 Shizuku（shell 身份）执行 pm install，同样不需要弹系统安装确认框。</string>
+    <string name="shizuku_status">Shizuku</string>
+    <string name="shizuku_running">运行中 · v%1$s</string>
+    <string name="shizuku_not_running">未运行 — 点此打开 Shizuku</string>
+    <string name="shizuku_not_installed">尚未安装 Shizuku</string>
+    <string name="shizuku_disabled">已关闭</string>
+
+    // 主题
+    <string name="theme_dynamic">动态取色（跟随系统）</string>
+    <string name="theme_dark_pure">纯黑（AMOLED）</string>
+
+    // 应用列表与刷新态
+    <string name="refreshing_apps">正在读取已安装应用…</string>
+    <string name="refreshing_updates">正在检查更新…</string>
+    <string name="app_version_line">版本 %1$s</string>
+    <string name="app_tag_system">系统应用</string>
+    <string name="ignore_confirm_title">要忽略这个应用吗？</string>
+    <string name="ignore_confirm_summary">%1$s 将不再检查更新，之后可以取消忽略。</string>
+    <string name="ignore_confirm_ok">忽略</string>
+    <string name="confirm_ignore">忽略前二次确认</string>
+    <string name="confirm_ignore_summary">忽略应用时弹出确认框，避免误触。</string>
+    <string name="fake_play_installer">伪装 Google Play 安装来源</string>
+    <string name="fake_play_installer_summary">静默安装时把安装来源记录为 Google Play（pm install -i com.android.vending），仅 Root/Shizuku 生效，解决部分应用「请在 Google Play 安装/更新」的来源校验</string>
+
+    // 小米应用商店来源
+    <string name="source_xiaomi">小米应用商店</string>
+    <string name="source_xiaomi_summary">仅提供版本检查。下载地址需要小米设备身份（xmsf）才能取得，因此该来源的条目可以看到但无法安装。默认关闭。</string>
+
+    // vivo 应用商店来源
+    <string name="source_vivo">vivo 应用商店</string>
+    <string name="source_vivo_summary">无需签名、无需设备身份 —— 也是唯一能拿到可直接下载 https 地址的国产商店。商店未收录的应用不会出现。</string>
+    <!-- ===== 设置界面重组：主页面分组入口 + 二级页面 ===== -->
+    <string name="back">返回</string>
+    <string name="settings_install">安装</string>
+
+    <string name="settings_group_update">更新</string>
+    <string name="settings_group_install">安装</string>
+    <string name="settings_group_network">网络</string>
+    <string name="settings_group_automation">自动化</string>
+    <string name="settings_group_other">其他</string>
+
+    <string name="sources_group_domestic">国内商店</string>
+    <string name="sources_group_global">海外来源</string>
+    <string name="sources_group_version">版本类型</string>
+    <string name="settings_group_app_type">应用类型</string>
+    <string name="settings_group_install_mode">安装方式</string>
+    <string name="settings_group_permission">权限</string>
+    <string name="settings_group_line">总开关</string>
+    <string name="settings_group_mirror">镜像线路</string>
+    <string name="settings_group_repo">软件仓库</string>
+    <string name="settings_group_tools">工具</string>
+    <string name="settings_group_proxy_detail">代理详情</string>
+    <string name="settings_group_mcp">服务配置</string>
+    <string name="settings_group_mcp_status">运行状态</string>
+
+    <string name="sources_enabled_count">已启用 %1$d / %2$d</string>
+    <string name="filter_none_summary">不过滤</string>
+    <string name="proxy_off_summary">未启用</string>
+    <string name="network_summary">GitHub 走 %1$s</string>
+    <string name="alarm_on_summary">已开启 · %1$02d:00</string>
+    <string name="alarm_off_summary">未开启</string>
+    <string name="mcp_running_summary">运行中 · %1$s:%2$d</string>
+    <string name="appearance_summary">主题：%1$s</string>
+    <string name="install_done">安装完成</string>
+    <string name="install_failure_named">%1$s 安装失败</string>
+    <string name="install_failed">安装失败</string>
+</resources>
