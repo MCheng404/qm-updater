@@ -68,21 +68,21 @@ android {
                 storePassword = props.getProperty("keystore.password")
                 keyAlias = props.getProperty("keystore.keyalias")
                 keyPassword = props.getProperty("keystore.keypassword")
+                enableV3Signing = true
             } catch (_: Exception) {
-                val config = signingConfigs.getByName("debug")
-                storeFile = config.storeFile
-                storePassword = config.storePassword
-                keyAlias = config.keyAlias
-                keyPassword = config.keyPassword
-                println("Signing config not found. Using debug settings.")
+                // 无签名密钥（CI 上既无 local.properties 也无 KEYSTORE secrets）时不 fallback 到
+                // debug.keystore —— GitHub hosted runner 不预生成 debug.keystore，
+                // 之前导致 validateSigningRelease 报 "Keystore file ... not found" 构建失败。
+                // 此处留空，release buildType 检测 storeFile == null 后不绑定签名 → 输出 unsigned APK。
+                println("Signing config not found. Building unsigned APK.")
             }
-            enableV3Signing = true
         }
     }
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            // 只有拿到真实签名密钥才绑定签名；否则产物为 unsigned APK（CI 无 secrets 时仍可出包测试）
+            signingConfigs.getByName("release").storeFile?.let { signingConfig = signingConfigs.getByName("release") }
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
