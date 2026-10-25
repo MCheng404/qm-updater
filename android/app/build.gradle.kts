@@ -100,7 +100,7 @@ dependencies {
     // Compose BOM 2026.09.00 -> androidx.compose 1.12.1，与 Miuix 依赖的 CMP 1.12.0 对齐
     val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     implementation(composeBom)
-    implementation("androidx.activity:activity-compose:1.12.4")
+    implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
@@ -112,27 +112,34 @@ dependencies {
     implementation("top.yukonga.miuix.kmp:miuix-icons:$miuixVersion")
     implementation("top.yukonga.miuix.kmp:miuix-squircle:$miuixVersion")
     implementation("top.yukonga.miuix.kmp:miuix-nav:$miuixVersion")
-    implementation("androidx.core:core-ktx:1.17.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
-    implementation("androidx.navigation:navigation-compose:2.9.7")
-    implementation("androidx.navigation:navigation-runtime-ktx:2.9.7")
-    implementation("androidx.tv:tv-foundation:1.0.0-alpha12")
-    implementation("androidx.work:work-runtime-ktx:2.11.1")
-    implementation("com.github.rumboalla.KryptoPrefs:kryptoprefs-gson:0.4.3")
-    implementation("com.github.rumboalla.KryptoPrefs:kryptoprefs:0.4.3")
+    implementation("androidx.core:core-ktx:1.19.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.navigation:navigation-compose:2.10.2")
+    implementation("androidx.navigation:navigation-runtime-ktx:2.10.2")
+    implementation("androidx.tv:tv-foundation:1.0.0")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
+    // KryptoPrefs 是 Kotlin 1.3 时代的上游库，传递引入 kotlin-android-extensions-runtime:1.3.50，
+    // 与 gplayapi 的 kotlin-parcelize-runtime 冲突（Duplicate class kotlinx.android.parcel.*，
+    // Gradle 9.8+ 严格校验直接报错）。本项目未用 @Parcelize，排除该旧运行时。
+    implementation("com.github.rumboalla.KryptoPrefs:kryptoprefs-gson:0.4.3") {
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-android-extensions-runtime")
+    }
+    implementation("com.github.rumboalla.KryptoPrefs:kryptoprefs:0.4.3") {
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-android-extensions-runtime")
+    }
     implementation("com.github.topjohnwu.libsu:core:6.0.0")
-    implementation("com.auroraoss:gplayapi:3.5.8")
-    implementation("com.google.code.gson:gson:2.13.2")
-    implementation("com.squareup.okhttp3:logging-interceptor:5.3.2")
+    implementation("com.auroraoss:gplayapi:3.6.4")
+    implementation("com.google.code.gson:gson:2.15.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:5.5.1")
     implementation("com.squareup.retrofit2:converter-gson:3.0.0")
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
-    implementation("io.coil-kt.coil3:coil-compose:3.4.0")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
+    implementation("io.coil-kt.coil3:coil-compose:3.6.3")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")
     implementation("io.github.g00fy2:versioncompare:1.5.0")
-    implementation("io.insert-koin:koin-android:4.1.1")
-    implementation("io.insert-koin:koin-androidx-compose:4.1.1")
-    implementation("org.jsoup:jsoup:1.22.1")
+    implementation("io.insert-koin:koin-android:4.2.2")
+    implementation("io.insert-koin:koin-androidx-compose:4.2.2")
+    implementation("org.jsoup:jsoup:1.23.2")
 
     testImplementation("junit:junit:4.13.2")
 
