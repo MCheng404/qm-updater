@@ -2,7 +2,7 @@ name: Release
 
 # 推一个 vX.Y.Z 的 tag 即触发：云端并行构建双端产物并发布到同一个 GitHub Release：
 #   - Windows 桌面：x64 + ARM64 的「安装包 + 便携包」、（可选）Authenticode 签名
-#   - Android：独立安卓端（MCheng404/onekey-updater，Kotlin+Compose，app 分支）
+#   - Android：独立安卓端（MCheng404/qm-updater-android，Kotlin+Compose，app 分支）
 #     release APK；签名读取本仓库 secrets KEYSTORE / PROPERTIES（缺失回落 debug 签名）
 # 双端版本号同源：tag → versionName=X.Y.Z（桌面同步 package.json/Cargo.toml/tauri.conf.json/
 # AboutView 4 处；安卓由 BUILD_VERSION 注入），versionCode 由 tag 派生（X*10000+Y*100+Z）。
@@ -235,10 +235,10 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "发布版本：$v"
 
-      - name: Checkout Android app (onekey-updater)
+      - name: Checkout Android app (qm-updater-android)
         uses: actions/checkout@v4
         with:
-          repository: MCheng404/onekey-updater
+          repository: MCheng404/qm-updater-android
           ref: app
           path: android-app
 
