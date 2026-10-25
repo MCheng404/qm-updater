@@ -1,0 +1,54 @@
+name: Auto Tag
+
+# 每次推送到发版分支时，自动按 package.json 的 version 打 vX.Y.Z tag。
+# tag 推送会触发 release.yml（双端构建 + 发布 GitHub Release），实现「推送即发版」。
+# 版本号是唯一权威：发版只需 bump package.json 的 version 后 push；
+# 版本未变化时对应 tag 已存在，本工作流自动跳过，不会重复发版。
+on:
+  push:
+    branches:
+      - refactor/vue-frontend
+
+concurrency:
+  group: auto-tag
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  auto-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version from package.json
+        id: ver
+        run: |
+          v=$(node -p "require('./package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+          echo "resolved tag: v$v"
+
+      - name: Check whether tag already exists
+        id: chk
+        run: |
+          tag="v${{ steps.ver.outputs.version }}"
+          if git ls-remote --exit-code origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "tag $tag already exists, skip (version unchanged)"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "tag $tag does not exist, will create"
+          fi
+
+      - name: Create and push tag
+        if: steps.chk.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ steps.ver.outputs.version }}" -m "Release v${{ steps.ver.outputs.version }}"
+          git push origin "v${{ steps.ver.outputs.version }}"

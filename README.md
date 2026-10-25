@@ -58,7 +58,7 @@ npm run tauri:build -- --target aarch64-pc-windows-msvc   # ARM64 release
 # ---- Android (requires JDK 17 + Android SDK, Gradle wrapper included) ----
 cd android
 ./gradlew :app:assembleDebug     # debug APK
-BUILD_VERSION=2.4.0 ./gradlew :app:assembleRelease    # release (BUILD_VERSION → versionName)
+./gradlew :app:assembleRelease   # release (versionName/versionCode read from repo-root package.json; CI may override via BUILD_VERSION/BUILD_NUMBER)
 ```
 
 ## Project Structure
@@ -80,13 +80,13 @@ BUILD_VERSION=2.4.0 ./gradlew :app:assembleRelease    # release (BUILD_VERSION �
 │   │   ├── util/          # Downloader / RootInstaller / SessionInstaller
 │   │   └── ui/            # Compose screens
 │   └── gradle/            # Gradle wrapper 9.7.1 (mirrored)
-├── .github/workflows/     # release.yml: tag → desktop + Android same-version Release
+├── .github/workflows/     # auto-tag.yml: push to release branch auto-tags; release.yml: tag → desktop + Android same-version Release
 └── scripts/               # version sync helpers
 ```
 
 ## CI / Release
 
-Push a `vX.Y.Z` tag (or trigger `workflow_dispatch` manually): [release.yml](.github/workflows/release.yml) builds the desktop installer/portable (x64 + ARM64, optional Authenticode signing) and the Android release APK in parallel, then publishes **one Release with both platforms** under the same version number. `SHA256SUMS.txt` at the release root covers all 5 artifacts.
+**Push-to-release**: `package.json` `version` is the single source of truth. Bump the version and push the `refactor/vue-frontend` branch — [auto-tag.yml](.github/workflows/auto-tag.yml) creates the `vX.Y.Z` tag automatically (skipped when the version is unchanged), which triggers [release.yml](.github/workflows/release.yml) to build the desktop installer/portable (x64 + ARM64, optional Authenticode signing) and the Android release APK in parallel, then publish **one Release with both platforms** under the same version number. A manual `workflow_dispatch` trigger is also available. `SHA256SUMS.txt` at the release root covers all 5 artifacts.
 
 ## License
 

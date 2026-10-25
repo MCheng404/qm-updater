@@ -58,7 +58,7 @@ npm run tauri:build -- --target aarch64-pc-windows-msvc   # ARM64 發佈版
 # ---- 安卓端（需 JDK 17 + Android SDK，Gradle wrapper 已內建）----
 cd android
 ./gradlew :app:assembleDebug     # 除錯包
-BUILD_VERSION=2.4.0 ./gradlew :app:assembleRelease    # 發佈包（BUILD_VERSION → versionName）
+./gradlew :app:assembleRelease   # 發佈包（versionName/versionCode 自動從倉庫根 package.json 讀取；CI 可用 BUILD_VERSION/BUILD_NUMBER 覆蓋）
 ```
 
 ## 專案結構
@@ -80,13 +80,13 @@ BUILD_VERSION=2.4.0 ./gradlew :app:assembleRelease    # 發佈包（BUILD_VERSIO
 │   │   ├── util/          # Downloader / RootInstaller / SessionInstaller
 │   │   └── ui/            # Compose 介面
 │   └── gradle/            # Gradle wrapper 9.7.1（已配大陸鏡像）
-├── .github/workflows/     # release.yml：打 tag → 雙端同號一次發佈
+├── .github/workflows/     # auto-tag.yml：推送到發佈分支自動打 tag；release.yml：tag → 雙端同號一次發佈
 └── scripts/               # 版本同步工具
 ```
 
 ## CI / 發佈
 
-推送 `vX.Y.Z` tag（或手動 `workflow_dispatch` 觸發）：[release.yml](.github/workflows/release.yml) 並行建置桌面端安裝包/綠色版（x64 + ARM64，可選 Authenticode 簽名）與安卓端 release APK，最終在**同一個 Release** 下發佈雙端產物（同一版本號）。Release 根目錄的 `SHA256SUMS.txt` 涵蓋全部 5 個產物。
+**推送即發版**：版本號唯一權威是 `package.json` 的 `version`。更動程式碼後 bump 版本號並推送 `refactor/vue-frontend` 分支，[auto-tag.yml](.github/workflows/auto-tag.yml) 自動打 `vX.Y.Z` tag（版本未變化時跳過），tag 推送觸發 [release.yml](.github/workflows/release.yml) 並行建置桌面端安裝包/綠色版（x64 + ARM64，可選 Authenticode 簽名）與安卓端 release APK，最終在**同一個 Release** 下發佈雙端產物（同一版本號）。也可在 Actions 頁面手動 `workflow_dispatch` 觸發。Release 根目錄的 `SHA256SUMS.txt` 涵蓋全部 5 個產物。
 
 ## 授權
 

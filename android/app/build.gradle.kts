@@ -23,14 +23,27 @@ android {
 
     val buildNumber = System.getenv("BUILD_NUMBER").orEmpty()
     val buildVersion = System.getenv("BUILD_VERSION").orEmpty()
+
+    // 版本号双端同源：本地构建默认从仓库根 package.json 读取（CI 由 tag 注入
+    // BUILD_VERSION / BUILD_NUMBER 优先，见 .github/workflows/release.yml），
+    // 与桌面端共用唯一版本源，消除此前写死的 versionCode=66 / versionName=3.8.0 错位。
+    val pkgVersion = try {
+        Regex("\"version\"\\s*:\\s*\"([^\"]+)\"").find(file("../../package.json").readText())?.groupValues?.get(1)
+    } catch (_: Exception) { null }
+    // versionName：BUILD_VERSION（CI tag 注入）> package.json > 兜底字面量
+    val releaseVersion = buildVersion.ifEmpty { pkgVersion ?: "2.1.0" }
+    // versionCode：BUILD_NUMBER（CI 由 tag 派生 X*10000+Y*100+Z）> 本地由版本号同规则派生
+    val releaseCode = if (buildNumber.isEmpty()) {
+        val p = releaseVersion.split(".").map { it.toIntOrNull() ?: 0 }
+        p.getOrElse(0) { 0 } * 10000 + p.getOrElse(1) { 0 } * 100 + p.getOrElse(2) { 0 }
+    } else buildNumber.toInt()
+
     defaultConfig {
         applicationId = "com.qm.updater" + System.getenv("BUILD_TAG").orEmpty()
         minSdk = 26
         targetSdk = 37
-        versionCode = if (buildNumber.isEmpty()) 66 else buildNumber.toInt()
-        // BUILD_VERSION 优先（双端统一发布时由 tag 注入，如 2.4.0）；未注入时沿用原回落逻辑
-        versionName = if (buildVersion.isNotEmpty()) buildVersion
-            else if (buildNumber.isEmpty()) "3.8.0" else "0.0.$buildNumber"
+        versionCode = releaseCode
+        versionName = releaseVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
