@@ -1,7 +1,7 @@
 name: Auto Tag
 
-# 每次推送到发版分支时，自动按 package.json 的 version 打 vX.Y.Z tag。
-# tag 推送会触发 release.yml（双端构建 + 发布 GitHub Release），实现「推送即发版」。
+# 每次推送到发版分支时，自动按 package.json 的 version 打 vX.Y.Z tag，
+# 并显式 dispatch release.yml（GITHUB_TOKEN 推 tag 不会触发 on:push workflow）。
 # 版本号是唯一权威：发版只需 bump package.json 的 version 后 push；
 # 版本未变化时对应 tag 已存在，本工作流自动跳过，不会重复发版。
 on:
@@ -52,3 +52,11 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "v${{ steps.ver.outputs.version }}" -m "Release v${{ steps.ver.outputs.version }}"
           git push origin "v${{ steps.ver.outputs.version }}"
+
+      # ⚠️ GITHUB_TOKEN 推送的 tag 不会触发 on:push 的 workflow（GitHub 防递归策略），
+      # 因此必须显式 dispatch release.yml —— workflow_dispatch 是 GITHUB_TOKEN
+      # 唯一可触发的例外事件。传 tag 参数，ref 指向刚推送的 tag。
+      - name: Dispatch release workflow
+        if: steps.chk.outputs.exists == 'false'
+        run: |
+          gh workflow run release.yml -f "tag=v${{ steps.ver.outputs.version }}" -r "v${{ steps.ver.outputs.version }}"

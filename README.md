@@ -86,7 +86,7 @@ cd android
 
 ## CI / Release
 
-**Push-to-release**: `package.json` `version` is the single source of truth. Bump the version and push the `refactor/vue-frontend` branch — [auto-tag.yml](.github/workflows/auto-tag.yml) creates the `vX.Y.Z` tag automatically (skipped when the version is unchanged), which triggers [release.yml](.github/workflows/release.yml) to build the desktop installer/portable (x64 + ARM64, optional Authenticode signing) and the Android release APK in parallel, then publish **one Release with both platforms** under the same version number. A manual `workflow_dispatch` trigger is also available. `SHA256SUMS.txt` at the release root covers all 5 artifacts.
+**Push-to-release**: `package.json` `version` is the single source of truth. Bump the version and push the `refactor/vue-frontend` branch — [auto-tag.yml](.github/workflows/auto-tag.yml) creates the `vX.Y.Z` tag automatically (skipped when the version is unchanged) and triggers [release.yml](.github/workflows/release.yml) to build the desktop installer/portable (x64 + ARM64, optional Authenticode signing) and the Android release APK in parallel, then publish **one Release with both platforms** under the same version number. A manual `workflow_dispatch` trigger is also available. `SHA256SUMS.txt` at the release root covers all 5 artifacts.
 
 ## License
 

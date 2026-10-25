@@ -86,7 +86,7 @@ cd android
 
 ## CI / 發佈
 
-**推送即發版**：版本號唯一權威是 `package.json` 的 `version`。更動程式碼後 bump 版本號並推送 `refactor/vue-frontend` 分支，[auto-tag.yml](.github/workflows/auto-tag.yml) 自動打 `vX.Y.Z` tag（版本未變化時跳過），tag 推送觸發 [release.yml](.github/workflows/release.yml) 並行建置桌面端安裝包/綠色版（x64 + ARM64，可選 Authenticode 簽名）與安卓端 release APK，最終在**同一個 Release** 下發佈雙端產物（同一版本號）。也可在 Actions 頁面手動 `workflow_dispatch` 觸發。Release 根目錄的 `SHA256SUMS.txt` 涵蓋全部 5 個產物。
+**推送即發版**：版本號唯一權威是 `package.json` 的 `version`。更動程式碼後 bump 版本號並推送 `refactor/vue-frontend` 分支，[auto-tag.yml](.github/workflows/auto-tag.yml) 自動打 `vX.Y.Z` tag（版本未變化時跳過）並觸發 [release.yml](.github/workflows/release.yml) 並行建置桌面端安裝包/綠色版（x64 + ARM64，可選 Authenticode 簽名）與安卓端 release APK，最終在**同一個 Release** 下發佈雙端產物（同一版本號）。也可在 Actions 頁面手動 `workflow_dispatch` 觸發。Release 根目錄的 `SHA256SUMS.txt` 涵蓋全部 5 個產物。
 
 ## 授權
 
