@@ -1,0 +1,63 @@
+									  
+<resources>
+
+    <string name="tab_apps">Apps</string>
+    <string name="tab_search">Suche</string>
+    <string name="tab_updates">Updates</string>
+    <string name="tab_settings">Setup</string>
+    <string name="something_went_wrong">"Etwas ist schiefgelaufen\n\uD83E\uDD26"</string>
+    <string name="ignore_version">Ausblenden</string>
+    <string name="ignore_cd">Ignorieren</string>
+    <string name="unignore_cd">Überprüfen</string>
+    <string name="refresh_updates">Suche nach Updates</string>
+    <string name="exclude_system_apps">System-Apps ignorieren</string>
+    <string name="include_system_apps">System-Apps überprüfen</string>
+    <string name="exclude_app_store">App-Store ignorieren</string>
+    <string name="include_app_store">App-Store überprüfen</string>
+    <string name="exclude_disabled_apps">Deaktivierte Apps ignorieren</string>
+    <string name="include_disabled_apps">Deaktivierte Apps überprüfen</string>
+    <string name="install_cd">Installieren</string>
+    <string name="app_cd">App-Icon</string>
+    <string name="install_success">%1$s installiert.</string>
+    <string name="install_failure">%1$s wurde nicht installiert.</string>
+    <string name="root_install_not_supported">Root-Installation dieser App wird nicht unterstützt.</string>
+
+    // Settings
+    <string name="play_text_animations">Textanimation verwenden</string>
+    <string name="settings_sources">Quellen</string>
+    <string name="settings_ui">Benutzeroberfläche</string>
+    <string name="settings_alarm">Alarm</string>
+    <string name="settings_options">Optionen</string>
+    <string name="settings_utils">Hilfsmittel</string>
+    <string name="settings_hour">Alarmzeit</string>
+    <string name="settings_alarm_daily">Täglich</string>
+    <string name="settings_alarm_3day">3-Tägig</string>
+    <string name="settings_alarm_weekly">Wöchentlich</string>
+    <string name="ignore_alpha">Alphas ignorieren</string>
+    <string name="ignore_beta">Betas ignorieren</string>
+    <string name="ignore_preRelease">Pre-Releases ignorieren</string>
+    <string name="use_safe_stores">Sichere Stores nutzen (Aptoide)</string>
+    <string name="root_install">Root-Installation</string>
+    <string name="about">Über</string>
+    <string name="frequency">Häufigkeit</string>
+    <string name="theme">Thema</string>
+    <string name="theme_system">System</string>
+    <string name="theme_dark">Dunkel</string>
+    <string name="theme_light">Hell</string>
+    <string name="about_github">Hol dir den Quellcode, melde Fehler und schlage Funktionen / Übersetzungen vor.</string>
+    <string name="about_donate">Wenn dir die App gefällt solltest du hier eine Spende in Betracht ziehen.</string>
+    <string name="copy_to_clipboard">Kopiere in Zwischenablage</string>
+    <string name="copy_app_list">App-Liste kopieren</string>
+    <string name="copy_app_logs">App-Logs kopieren</string>
+
+    // Notifications
+    <string name="notification_channel_name">Updates</string>
+    <string name="notification_channel_description">Kanal für Update-Benachrichtigungen.</string>
+    <string name="notification_update_title">Updates</string>
+    <plurals name="notification_update_description">
+        <item quantity="zero">Keine Updates gefunden.</item>
+        <item quantity="one">%1$d Update gefunden.</item>
+        <item quantity="other">%1$d Updates gefunden.</item>
+    </plurals>
+
+</resources>
