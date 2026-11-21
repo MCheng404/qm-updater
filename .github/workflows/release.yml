@@ -303,7 +303,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.desktop.outputs.tag }}
+          # The release tag may not exist yet: softprops/action-gh-release creates
+          # it during publish. Checkout the exact commit that was built instead.
+          ref: ${{ github.sha }}
           fetch-depth: 0       # 更新日志需要完整历史
 
       - name: Download desktop artifacts
@@ -346,6 +348,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.desktop.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: QM Updater ${{ needs.desktop.outputs.tag }}
           body_path: RELEASE_NOTES.md
           files: |

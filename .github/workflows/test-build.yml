@@ -180,7 +180,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.desktop.outputs.tag }}
+          # The prerelease tag may not exist until action-gh-release creates it.
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Download desktop artifacts
@@ -221,6 +222,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.desktop.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: QM Updater ${{ needs.desktop.outputs.tag }}
           body_path: RELEASE_NOTES.md
           files: |
