@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.qm.updater.R
 import com.qm.updater.data.ui.AppInstalled
 import com.qm.updater.data.ui.AppUpdate
@@ -93,7 +94,13 @@ fun AppIcon(
     val shape = RoundedCornerShape(size / 4)
     val context = LocalContext.current
     val sizePx = with(LocalDensity.current) { size.roundToPx() }
-    val hasRemoteIcon = iconUri.toString().isNotEmpty()
+    // Only http(s) icons need Coil. Local android.resource icons were wrongly
+    // classified as remote, bypassing IconCache and re-decoding on every scroll.
+    val hasRemoteIcon = iconUri.scheme.equals("http", true) ||
+        iconUri.scheme.equals("https", true)
+    val imageRequest = remember(iconUri, sizePx) {
+        ImageRequest.Builder(context).data(iconUri).size(sizePx).build()
+    }
 
     val bitmap by produceState<ImageBitmap?>(
         initialValue = if (hasRemoteIcon) null else IconCache.get(IconCache.key(packageName, sizePx)),
@@ -116,7 +123,7 @@ fun AppIcon(
             )
 
             hasRemoteIcon -> AsyncImage(
-                model = iconUri,
+                model = imageRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.size(size)

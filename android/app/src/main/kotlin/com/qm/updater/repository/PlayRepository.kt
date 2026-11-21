@@ -91,7 +91,8 @@ class PlayRepository(
                 .using(playHttpClient)
                 .getAppByPackageName(text)
                 .toAppUpdate(::getInstallFiles)
-            emit(Result.success(listOf(update)))
+                .takeIf { it.packageName.isNotBlank() }
+            emit(Result.success(listOfNotNull(update)))
         }
     }.catch {
         emit(Result.failure(it))

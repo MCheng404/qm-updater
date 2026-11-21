@@ -82,10 +82,9 @@ class TencentRepository(
         if (response.ret != 0) return null
         val apk = response.records?.get(app.packageName)?.apk ?: return null
         if (apk.versionName.isBlank() || apk.url.isBlank()) return null
-        // 版本护栏：只保留确实更高的版本（应用宝的 version_code 也可能与厂商自带方案不一致，
-        // 因此版本号与 versionCode 都要过一遍）
-        if (apk.versionCode <= app.versionCode) return null
-
+        // The global guard in UpdatesRepository compares version names first;
+        // rejecting a candidate here by versionCode alone would hide valid
+        // upgrades from vendors that use a different code scheme.
         return AppUpdate(
             name = response.records[app.packageName]?.info?.name.orEmpty().ifBlank { app.name },
             packageName = app.packageName,

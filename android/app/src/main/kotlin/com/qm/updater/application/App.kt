@@ -4,6 +4,9 @@ import android.app.Application
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.disk.directory
+import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import android.util.Log
 import com.qm.updater.di.mainModule
@@ -82,6 +85,17 @@ class App : Application(), SingletonImageLoader.Factory, KoinComponent {
 	override fun newImageLoader(context: PlatformContext) = ImageLoader
 		.Builder(this)
 		.components { add(OkHttpNetworkFetcherFactory(callFactory = { get<OkHttpClient>() })) }
+		// Keep decoded images in a bounded memory cache so recomposition never
+		// re-decodes the same icon.
+		.memoryCache { MemoryCache.Builder().maxSizeBytes(32L * 1024 * 1024).build() }
+		// Separate from the OkHttp cache used by APK downloads; otherwise large
+		// APK responses evict small icons and force repeated icon downloads.
+		.diskCache {
+			DiskCache.Builder()
+				.directory(cacheDir.resolve("image_cache"))
+				.maxSizeBytes(64L * 1024 * 1024)
+				.build()
+		}
 		//.logger(DebugLogger())
 		.build()
 

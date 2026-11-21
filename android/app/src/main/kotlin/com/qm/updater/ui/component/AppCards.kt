@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,6 +37,8 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Blocklist
@@ -52,6 +55,7 @@ fun UpdateCard(
     modifier: Modifier = Modifier
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -107,6 +111,10 @@ fun UpdateCard(
 
             InstallAction(update, onInstall)
         }
+        if (update.isInstalling) {
+            DownloadProgressRow(update, update.name.ifEmpty { update.packageName })
+        }
+        }
     }
 }
 
@@ -133,6 +141,44 @@ private fun InstallAction(update: AppUpdate, onInstall: () -> Unit) {
                 modifier = Modifier.size(22.dp)
             )
         }
+    }
+}
+
+/**
+ * Full-width download bar shown below an installing item.
+ * Percent text keeps the progress readable when several cards are visible at once.
+ */
+@Composable
+private fun DownloadProgressRow(update: AppUpdate, label: String) {
+    val fraction = if (update.total > 0L) {
+        (update.progress.toFloat() / update.total.toFloat()).coerceIn(0f, 1f)
+    } else {
+        null
+    }
+    val percent = fraction?.let { (it * 100).toInt() }
+    val text = if (percent != null) {
+        stringResource(R.string.notification_progress_pct, label, percent)
+    } else {
+        stringResource(R.string.notification_progress_unknown, label)
+    }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 10.dp)) {
+        Text(
+            text = text,
+            style = MiuixTheme.textStyles.footnote2,
+            color = MiuixTheme.colorScheme.primary,
+            maxLines = 1
+        )
+        Spacer(Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = fraction,
+            modifier = Modifier.fillMaxWidth().height(8.dp),
+            colors = ProgressIndicatorDefaults.progressIndicatorColors(
+                foregroundColor = MiuixTheme.colorScheme.primary,
+                disabledForegroundColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.4f),
+                backgroundColor = MiuixTheme.colorScheme.surfaceContainerHighest
+            )
+        )
     }
 }
 
@@ -224,7 +270,7 @@ fun InstalledCard(
 fun UpdateGroupCard(
     candidates: List<AppUpdate>,
     onInstall: (AppUpdate) -> Unit,
-    onIgnore: (AppUpdate) -> Unit,
+    onIgnore: ((AppUpdate) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (candidates.isEmpty()) return
@@ -253,6 +299,7 @@ fun UpdateGroupCard(
     val active = candidates.firstOrNull { it.isInstalling } ?: selected
 
     Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -306,16 +353,22 @@ fun UpdateGroupCard(
 
             Spacer(Modifier.width(8.dp))
 
-            IconButton(onClick = { onIgnore(selected) }) {
-                Icon(
-                    imageVector = MiuixIcons.Blocklist,
-                    contentDescription = "忽略此版本",
-                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    modifier = Modifier.size(20.dp)
-                )
+            if (onIgnore != null) {
+                IconButton(onClick = { onIgnore(selected) }) {
+                    Icon(
+                        imageVector = MiuixIcons.Blocklist,
+                        contentDescription = "忽略此版本",
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             InstallAction(active) { onInstall(selected) }
+        }
+        if (active.isInstalling) {
+            DownloadProgressRow(active, title)
+        }
         }
     }
 }

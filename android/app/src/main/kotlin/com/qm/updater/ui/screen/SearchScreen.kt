@@ -10,7 +10,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -18,6 +20,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.qm.updater.R
@@ -26,97 +29,160 @@ import com.qm.updater.ui.component.AppList
 import com.qm.updater.ui.component.EmptyState
 import com.qm.updater.ui.component.ErrorState
 import com.qm.updater.ui.component.LoadingList
-import com.qm.updater.ui.component.UpdateCard
+import com.qm.updater.ui.component.UpdateGroupCard
+import com.qm.updater.ui.component.groupByPackagePreservingOrder
 import com.qm.updater.viewmodel.SearchViewModel
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Close
 import top.yukonga.miuix.kmp.icon.extended.Search
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-
-/** 输入停顿多久后才真正发起搜索，避免每敲一个字母打一轮全网接口。 */
 private const val SEARCH_DEBOUNCE_MS = 600L
-private const val MIN_QUERY_LENGTH = 2
+private const val TYPE_META = "search-meta"
+private const val TYPE_CARD = "search-card"
 
 @Composable
 fun SearchScreen(viewModel: SearchViewModel) {
-	val state = viewModel.state().collectAsStateWithLifecycle().value
-	val handler = LocalUriHandler.current
-	val keyboard = LocalSoftwareKeyboardController.current
-	var query by rememberSaveable { mutableStateOf("") }
+    val state = viewModel.state().collectAsStateWithLifecycle().value
+    val handler = LocalUriHandler.current
+    val keyboard = LocalSoftwareKeyboardController.current
 
-	// 防抖：上游是「>=3 字符再固定等 1 秒」，输入慢时仍然会打满所有源；
-	// 这里改成每次输入重置计时器，停顿 600ms 才发请求。
-	LaunchedEffect(query) {
-		when {
-			query.length >= MIN_QUERY_LENGTH -> {
-				delay(SEARCH_DEBOUNCE_MS)
-				viewModel.search(query)
-			}
-			else -> viewModel.search("")
-		}
-	}
+    var query by rememberSaveable { mutableStateOf("") }
+    var submitToken by rememberSaveable { mutableIntStateOf(0) }
+    var lastToken by rememberSaveable { mutableIntStateOf(0) }
 
-	Column {
-		SmallTopAppBar(
-			title = stringResource(R.string.tab_search))
+    // One entry point for debounce and IME submit. IME increments the token so
+    // the search starts immediately; plain typing still waits for a pause.
+    LaunchedEffect(query, submitToken) {
+        val text = query.trim()
+        if (text.length < SearchViewModel.MIN_QUERY_LENGTH) {
+            viewModel.search("")
+            return@LaunchedEffect
+        }
+        val immediate = submitToken != lastToken
+        lastToken = submitToken
+        if (!immediate) delay(SEARCH_DEBOUNCE_MS)
+        if (text == query.trim()) viewModel.search(text)
+    }
 
-		TextField(
-			value = query,
-			onValueChange = { query = it },
-			modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-			label = stringResource(R.string.search_hint),
-			useLabelAsPlaceholder = true,
-			singleLine = true,
-			leadingIcon = {
-				Icon(
-					imageVector = MiuixIcons.Search,
-					contentDescription = null,
-					modifier = Modifier.size(20.dp)
-				)
-			},
-			trailingIcon = if (query.isNotEmpty()) {
-				{
-					IconButton(onClick = { query = "" }) {
-						Icon(
-							imageVector = MiuixIcons.Close,
-							contentDescription = stringResource(R.string.clear_search),
-							modifier = Modifier.size(18.dp)
-						)
-					}
-				}
-			} else {
-				null
-			},
-			keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-			keyboardActions = KeyboardActions(onSearch = {
-				keyboard?.hide()
-				viewModel.search(query)
-			})
-		)
+    Column {
+        SmallTopAppBar(title = stringResource(R.string.tab_search))
 
-		when {
-			state is SearchUiState.Empty -> EmptyState(stringResource(R.string.search_hint_long))
+        TextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+            label = stringResource(R.string.search_hint),
+            useLabelAsPlaceholder = true,
+            singleLine = true,
+            leadingIcon = {
+                Icon(
+                    imageVector = MiuixIcons.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+            },
+            trailingIcon = if (query.isNotEmpty()) {
+                {
+                    IconButton(onClick = {
+                        query = ""
+                        keyboard?.hide()
+                    }) {
+                        Icon(
+                            imageVector = MiuixIcons.Close,
+                            contentDescription = stringResource(R.string.clear_search),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            } else {
+                null
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = {
+                keyboard?.hide()
+                submitToken++
+            })
+        )
 
-			state is SearchUiState.Loading -> LoadingList()
+        when (state) {
+            is SearchUiState.Empty -> EmptyState(stringResource(R.string.search_hint_long))
 
-			state is SearchUiState.Error -> ErrorState()
+            is SearchUiState.Loading -> Column {
+                Text(
+                    text = stringResource(R.string.search_searching, state.query),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+                LinearProgressIndicator(
+                    progress = null,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+                )
+                LoadingList(modifier = Modifier.weight(1f))
+            }
 
-			state is SearchUiState.Success && state.updates.isEmpty() ->
-				EmptyState(stringResource(R.string.no_search_results))
+            is SearchUiState.Error -> ErrorState(
+                text = stringResource(R.string.something_went_wrong),
+                detail = state.message,
+                onRetry = { viewModel.retry() }
+            )
 
-			state is SearchUiState.Success -> AppList {
-				items(state.updates, key = { it.id }) { update ->
-					UpdateCard(
-						update = update,
-						onInstall = { viewModel.install(update, handler) }
-					)
-				}
-			}
-		}
-	}
+            is SearchUiState.Success -> {
+                if (state.updates.isEmpty()) {
+                    EmptyState(
+                        text = stringResource(R.string.no_search_results),
+                        detail = stringResource(R.string.search_no_results_detail, state.query)
+                    )
+                } else {
+                    val groups = remember(state.updates) {
+                        state.updates.groupByPackagePreservingOrder()
+                    }
+                    AppList {
+                        item(key = "search-meta", contentType = TYPE_META) {
+                            Text(
+                                text = stringResource(
+                                    R.string.search_result_meta,
+                                    groups.size,
+                                    state.elapsedMs / 1000f
+                                ),
+                                style = MiuixTheme.textStyles.footnote1,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+                        if (state.failedSources > 0) {
+                            item(key = "search-partial", contentType = TYPE_META) {
+                                Text(
+                                    text = stringResource(R.string.search_partial_error, state.failedSources),
+                                    style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.error,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                                )
+                            }
+                        }
+                        items(
+                            items = groups,
+                            key = { it.first().packageName },
+                            contentType = { TYPE_CARD }
+                        ) { candidates ->
+                            UpdateGroupCard(
+                                candidates = candidates,
+                                onInstall = { update -> viewModel.install(update, handler) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

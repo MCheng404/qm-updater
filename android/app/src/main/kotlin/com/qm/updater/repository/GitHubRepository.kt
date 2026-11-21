@@ -17,6 +17,11 @@ import com.qm.updater.prefs.Prefs
 import com.qm.updater.service.GitHubService
 import com.qm.updater.util.filterVersionTag
 import io.github.g00fy2.versioncompare.Version
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
@@ -25,8 +30,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.timeout
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlin.time.Duration.Companion.milliseconds
-import java.util.Scanner
+import java.util.concurrent.ConcurrentHashMap
 
 
 class GitHubRepository(
@@ -46,6 +53,61 @@ class GitHubRepository(
 
         /** 安卓发布使用的标签前缀，例如 `app-v3.2.0`。 */
         const val SELF_TAG_PREFIX = "app-v"
+
+        /** Release lists are shared by update scan, search and MCP within this TTL. */
+        private const val RELEASE_TTL_MS = 10 * 60 * 1000L
+
+        /** Unauthenticated GitHub allows 60 requests/hour; keep bursts bounded. */
+        private const val FETCH_SLOTS = 5
+    }
+
+    private data class ReleaseCacheEntry(
+        val releases: List<GitHubRelease>,
+        val expiresAt: Long
+    )
+
+    private val releaseCache = ConcurrentHashMap<String, ReleaseCacheEntry>()
+    private val inFlight = ConcurrentHashMap<String, Deferred<List<GitHubRelease>>>()
+    private val fetchGate = Semaphore(FETCH_SLOTS)
+    private val cacheScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * Fetch releases once per owner/repo. Variants of the same repository share
+     * the response; a failed refresh falls back to the last successful result.
+     */
+    private suspend fun releases(user: String, repo: String): List<GitHubRelease> {
+        val key = "$user/$repo"
+        val cached = releaseCache[key]
+        if (cached != null && cached.expiresAt > System.currentTimeMillis()) {
+            return cached.releases
+        }
+        inFlight[key]?.takeIf { it.isActive }?.let { return it.await() }
+
+        val deferred = cacheScope.async {
+            fetchGate.withPermit {
+                val fetched = runCatching {
+                    service.getReleases(user, repo, 50)
+                }
+                val value = if (fetched.isSuccess) {
+                    fetched.getOrDefault(emptyList()).also {
+                        releaseCache[key] = ReleaseCacheEntry(
+                            it,
+                            System.currentTimeMillis() + RELEASE_TTL_MS
+                        )
+                    }
+                } else {
+                    releaseCache[key]?.releases?.takeIf { it.isNotEmpty() }
+                        ?: fetched.getOrThrow()
+                }
+                value
+            }
+        }
+        inFlight[key] = deferred
+        return try {
+            deferred.await()
+        } finally {
+            inFlight.remove(key, deferred)
+        }
     }
 
     /**
@@ -61,11 +123,12 @@ class GitHubRepository(
     suspend fun updates(apps: List<AppInstalled>) = flow {
         val checks = mutableListOf(selfCheck())
 
-        GitHubApps.forEachIndexed { i, app ->
-            if (i != 0) {
-                apps.find { it.packageName == app.packageName }?.let {
-                    checks.add(checkApp(apps, app.user, app.repo, app.packageName, it.version, app.extra))
-                }
+        GitHubApps.forEach { app ->
+            // Self-update is handled by selfCheck(); never skip an ordinary app
+            // just because it used to sit at index 0 upstream.
+            if (app.packageName == BuildConfig.APPLICATION_ID) return@forEach
+            apps.find { it.packageName == app.packageName }?.let {
+                checks.add(checkApp(apps, app.user, app.repo, app.packageName, it.version, app.extra))
             }
         }
 
@@ -95,7 +158,7 @@ class GitHubRepository(
 
         GitHubApps.forEach { app ->
             if (app.repo.contains(text, true) || app.user.contains(text, true) || app.packageName.contains(text, true)) {
-                checks.add(checkApp(null, app.user, app.repo, app.packageName, "?", null))
+                checks.add(checkApp(null, app.user, app.repo, app.packageName, "?", app.extra))
             }
         }
 
@@ -134,18 +197,19 @@ class GitHubRepository(
      * 因此 versionCode 填 0 不会被误杀。
      */
     private fun selfCheck() = flow {
-        val releases = service.getReleases(SELF_REPO_OWNER, SELF_REPO_NAME)
+        val repoReleases = releases(SELF_REPO_OWNER, SELF_REPO_NAME)
             .filter { it.tag_name.startsWith(SELF_TAG_PREFIX) }
             .filter { filterPreRelease(it) }
             .filter { findApkAsset(it.assets).isNotEmpty() }
 
-        val latest = releases
+        val latest = repoReleases
             .maxByOrNull { parseSelfVersion(it.tag_name) ?: Version("0.0.0") }
         val remoteVersion = latest?.let { parseSelfVersion(it.tag_name) }
 
         if (latest != null && remoteVersion != null) {
             val current = BuildConfig.VERSION_NAME
-            val newer = runCatching { remoteVersion > Version(current) }.getOrDefault(false)
+            val installedVersion = parseVersion(current)
+            val newer = installedVersion == null || remoteVersion > installedVersion
             if (newer) {
                 // findApkAsset 返回的已经是下载地址字符串，不是 asset 对象
                 val apkUrl = findApkAsset(latest.assets)
@@ -183,35 +247,54 @@ class GitHubRepository(
         currentVersion: String,
         extra: Regex?
     ) = flow {
-        val r = service.getReleases(user, repo)
-        val releases = if (packageName == "com.qm.updater.ci") {
-            // TODO: Find a better way to do this
-            r.filter { it.name.contains("CI-Release-3.x")}
-        } else {
-            r.filter { filterPreRelease(it) }.filter { findApkAsset(it.assets).isNotEmpty() }
+        val r = releases(user, repo)
+        // Select the asset here so a release that cannot produce a usable APK
+        // never becomes an update with an empty download URL.
+        val candidates = r
+            .filter { release ->
+                if (packageName == "com.qm.updater.ci") {
+                    Regex("CI-Release-3\\.\\d+").containsMatchIn(release.name)
+                } else {
+                    filterPreRelease(release)
+                }
+            }
+            .mapNotNull { release ->
+                val asset = findApkAssetArch(release.assets, extra)
+                if (asset.browser_download_url.isBlank()) null else release to asset
+            }
+
+        // Release APIs sort by creation time, not semantic version. Pick the
+        // highest version explicitly so a late-published older tag is not treated
+        // as an upgrade.
+        val latest = candidates.maxByOrNull { (release, _) ->
+            parseVersion(release.tag_name) ?: Version("0")
         }
+        val latestVersion = latest?.let { parseVersion(it.first.tag_name) }
+        val installedVersion = parseVersion(currentVersion)
+        val newer = latestVersion != null &&
+            (installedVersion == null || latestVersion > installedVersion)
 
         Log.i(
             TAG,
-            "检查 $packageName: 候选 release " + releases.size +
-                (if (releases.isEmpty()) "" else "，最新 tag=" + releases[0].tag_name +
-                    "，本机=" + currentVersion +
-                    "，判定=" + (Version(filterVersionTag(releases[0].tag_name)) > Version(currentVersion)))
+            "检查 $packageName: 候选 release " + candidates.size +
+                (if (latest == null) "" else "，最高 tag=${latest.first.tag_name}" +
+                    "，本机=$currentVersion，判定=$newer")
         )
 
-        if (releases.isNotEmpty() && Version(filterVersionTag(releases[0].tag_name)) > Version(currentVersion)) {
+        if (latest != null && newer) {
+            val (release, asset) = latest
             val app = apps?.getApp(packageName)
             emit(listOf(AppUpdate(
                 name = repo,
                 packageName = packageName,
-                version = releases[0].tag_name,
+                version = release.tag_name,
                 oldVersion = app?.version ?: "?",
                 versionCode = 0L,
                 oldVersionCode = app?.versionCode ?: 0L,
                 source = GitHubSource,
-                link = findApkAssetArch(releases[0].assets, extra).let { Link.Url(it.browser_download_url, it.size) },
-                whatsNew = releases[0].body,
-                iconUri = if (apps == null) releases[0].author.avatar_url.toUri() else Uri.EMPTY
+                link = Link.Url(asset.browser_download_url, asset.size),
+                whatsNew = release.body,
+                iconUri = if (apps == null) release.author.avatar_url.toUri() else Uri.EMPTY
             )))
         } else {
             emit(emptyList())
@@ -226,12 +309,10 @@ class GitHubRepository(
         Version(tag.removePrefix(SELF_TAG_PREFIX))
     }.getOrNull()
 
-    private fun getVersions(name: String) = runCatching {
-        val scanner = Scanner(name)
-        val version = scanner.next()
-        val versionCode = scanner.next().trim('(', ')').toLong()
-        Pair(version, versionCode)
-    }.getOrDefault(Pair(name, 0L))
+    /** Normalize both remote tags and installed version names before comparing. */
+    private fun parseVersion(value: String) = runCatching {
+        Version(filterVersionTag(value.trim()))
+    }.getOrNull()
 
     private fun filterPreRelease(release: GitHubRelease) = when {
         prefs.ignorePreRelease.get() && release.prerelease -> false
@@ -294,9 +375,10 @@ class GitHubRepository(
         }
     }
 
-    private fun filterExtra(asset: GitHubReleaseAsset, extra: Regex?) = when(extra) {
-        null -> true
-        else -> asset.browser_download_url.matches(extra)
+    private fun filterExtra(asset: GitHubReleaseAsset, extra: Regex?): Boolean {
+        if (extra == null) return true
+        val caseInsensitive = Regex(extra.pattern, extra.options + RegexOption.IGNORE_CASE)
+        return caseInsensitive.containsMatchIn(asset.browser_download_url)
     }
 
 }

@@ -137,4 +137,9 @@
     <string name="alarm_off_summary">未開啟</string>
     <string name="mcp_running_summary">執行中 · %1$s:%2$d</string>
     <string name="appearance_summary">主題：%1$s</string>
+    <string name="search_result_meta">找到 %1$d 個結果 · 耗時 %2$.1f 秒</string>
+    <string name="search_searching">正在搜尋“%1$s”…</string>
+    <string name="search_retry">重試</string>
+    <string name="search_partial_error">有 %1$d 個來源未返回，結果可能不完整</string>
+    <string name="search_no_results_detail">“%1$s” 在已啟用的來源中沒有符合項目</string>
 </resources>

@@ -68,12 +68,16 @@ class FdroidRepository(
 
     suspend fun updates(apps: List<AppInstalled>) = flow {
         val data = index()
-        val appNames = apps.map { it.packageName }
+        val appNames = apps.map { it.packageName }.toHashSet()
+        // A single malformed index entry must not blank out the whole source.
         val updates = data.apps
             .asSequence()
-            .filter { appNames.contains(it.packageName) }
-            .filter { filterSignature(apps.getApp(it.packageName)!!, it) }
-            .map { FdroidUpdate(data.packages[it.packageName]!![0], it) }
+            .filter { it.packageName in appNames }
+            .mapNotNull { app ->
+                val installed = apps.getApp(app.packageName) ?: return@mapNotNull null
+                val pkg = data.packages[app.packageName]?.firstOrNull() ?: return@mapNotNull null
+                FdroidUpdate(pkg, app).takeIf { filterSignature(installed, app) }
+            }
             .filter { it.apk.versionCode > apps.getVersionCode(it.app.packageName) }
             .parseUpdates(apps)
         emit(updates)
@@ -86,7 +90,9 @@ class FdroidRepository(
         val data = index()
         val updates = data.apps
             .asSequence()
-            .map { FdroidUpdate(data.packages[it.packageName]!![0], it) }
+            .mapNotNull { app ->
+                data.packages[app.packageName]?.firstOrNull()?.let { FdroidUpdate(it, app) }
+            }
             .filter {
                 it.app.name.contains(text, true) ||
                     it.app.packageName.contains(text, true) ||

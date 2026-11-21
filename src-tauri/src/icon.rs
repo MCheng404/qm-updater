@@ -475,16 +475,10 @@ pub fn fetch_icons_blocking(items: &[UpdateItem]) -> (HashMap<String, String>, u
     // 第二级：注册表 DisplayIcon（离线缓存）
     let registry = load_or_build_cache();
 
-    // 第三级：开始菜单快捷方式（仅在注册表没匹配到时才构建，节省时间）
-    let shortcuts = if registry.is_empty() {
-        build_via_shortcuts()
-    } else {
-        HashMap::new()
-    };
-
     let mut out = HashMap::new();
+    let mut unmatched: Vec<usize> = Vec::new();
 
-    for item in items {
+    for (index, item) in items.iter().enumerate() {
         let mut matched = false;
 
         // 第一级：winget manifest（通过包 ID 精确匹配，item.id 需归一化）
@@ -509,27 +503,30 @@ pub fn fetch_icons_blocking(items: &[UpdateItem]) -> (HashMap<String, String>, u
             }
         }
 
-        // 第三级：开始菜单快捷方式（通过名称模糊匹配）
-        if !matched && !shortcuts.is_empty() {
-            for (name, icon) in &shortcuts {
-                if name_matches(&item.name, name) {
-                    out.insert(
-                        item.id.clone(),
-                        format!("data:image/png;base64,{}", icon),
-                    );
-                    matched = true;
-                    break;
-                }
-            }
-        }
-
-        // 第四级：品牌默认图标（最终兜底）
         if !matched {
-            out.insert(
-                item.id.clone(),
-                default_icon_for_source(item.source).to_string(),
-            );
+            unmatched.push(index);
         }
+    }
+
+    // Build shortcuts only when an item is still unresolved. Using
+    // `registry.is_empty()` here made this tier unreachable on any machine
+    // with at least one registry entry.
+    let shortcuts = if unmatched.is_empty() {
+        HashMap::new()
+    } else {
+        build_via_shortcuts()
+    };
+
+    for index in unmatched {
+        let item = &items[index];
+        let icon = shortcuts.iter().find(|(name, _)| name_matches(&item.name, name));
+        out.insert(
+            item.id.clone(),
+            match icon {
+                Some((_, icon)) => format!("data:image/png;base64,{}", icon),
+                None => default_icon_for_source(item.source).to_string(),
+            },
+        );
     }
 
     let elapsed = SystemTime::now()

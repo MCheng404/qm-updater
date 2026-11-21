@@ -21,14 +21,12 @@ import com.qm.updater.repository.UpdatesRepository
 import com.qm.updater.util.AppLog
 import com.qm.updater.util.canSilentInstall
 import com.qm.updater.util.silentInstall
-import com.qm.updater.util.silentInstall
 import com.qm.updater.util.Downloader
 import com.qm.updater.util.RootInstaller
 import com.qm.updater.util.RootShell
 import com.qm.updater.util.SessionInstaller
 import com.qm.updater.util.isRootInstall
 import com.qm.updater.util.isSystemApp
-import com.qm.updater.util.filterVersionTag
 import kotlinx.coroutines.flow.lastOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -102,7 +100,7 @@ class McpBridgeImpl(
             ?: return McpInstallResult(false, "未在待更新列表中找到该应用：$packageName。请先调用 list_updates。")
 
         val target = if (source.isNullOrBlank()) {
-            candidates.maxByOrNull { it.versionCode } ?: candidates.first()
+            AppGrouping.recommended(candidates) ?: candidates.first()
         } else {
             candidates.firstOrNull { it.source.name.equals(source, ignoreCase = true) }
                 ?: return McpInstallResult(
@@ -143,9 +141,9 @@ class McpBridgeImpl(
         is Link.Xapk -> if (prefs.canSilentInstall()) {
             // 必须用真实结果：此前这里硬编码 true，导致安装实际失败（会话创建/写入报错）
             // 时也向调用方回报「已提交 Root 安装」，谎报成功。
-            val ok = installer.installXapk(
-                update.id, update.packageName, downloader.downloadStream(link.link, link.referer).stream
-            )
+            val ok = downloader.downloadStream(link.link, link.referer).use { download ->
+                installer.installXapk(update.id, update.packageName, download.stream)
+            }
             McpInstallResult(
                 ok,
                 if (ok) "分卷包（xapk）安装成功" else "分卷包安装失败，详情见设备上的提示"

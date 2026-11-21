@@ -66,4 +66,9 @@
         <item quantity="two">נמצאו %1$d עדכונים.</item>
     </plurals>
 
+    <string name="search_result_meta">Found %1$d results · %2$.1fs</string>
+    <string name="search_searching">Searching &quot;%1$s&quot;...</string>
+    <string name="search_retry">Retry</string>
+    <string name="search_partial_error">%1$d sources failed; results may be incomplete</string>
+    <string name="search_no_results_detail">No match for &quot;%1$s&quot; in enabled sources</string>
 </resources>

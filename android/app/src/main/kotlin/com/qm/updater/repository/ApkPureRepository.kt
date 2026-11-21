@@ -12,8 +12,14 @@ import com.qm.updater.data.ui.getSignature
 import com.qm.updater.prefs.Prefs
 import com.qm.updater.service.ApkPureService
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 
 class ApkPureRepository(
@@ -38,21 +44,27 @@ class ApkPureRepository(
     }
 
     suspend fun updates(apps: List<AppInstalled>) = flow {
-        val collected = mutableListOf<AppUpdateResponse>()
-
-        apps.chunked(CHUNK_SIZE).forEachIndexed { index, chunk ->
-            val info = chunk.map { AppInfoForUpdate(it.packageName, it.versionCode) }
-            val part = runCatching { service.getAppUpdate(header, GetAppUpdate(info)) }
-                .onFailure {
-                    Log.w(TAG, "第 " + (index + 1) + " 批失败（" + chunk.size + " 个应用）", it)
+        val total = (apps.size + CHUNK_SIZE - 1) / CHUNK_SIZE
+        val slots = Semaphore(4)
+        // Batches are independent network calls; run them concurrently with a
+        // bounded number of slots so a slow batch no longer multiplies the source latency.
+        val collected = coroutineScope {
+            apps.chunked(CHUNK_SIZE).mapIndexed { index, chunk ->
+                async(Dispatchers.IO) {
+                    slots.withPermit {
+                        val info = chunk.map { AppInfoForUpdate(it.packageName, it.versionCode) }
+                        val part = runCatching { service.getAppUpdate(header, GetAppUpdate(info)) }
+                            .onFailure {
+                                Log.w(TAG, "第 " + (index + 1) + " 批失败（" + chunk.size + " 个应用）", it)
+                            }
+                            .getOrNull()
+                            ?.app_update_response
+                            .orEmpty()
+                        Log.i(TAG, "第 " + (index + 1) + "/$total 批返回 " + part.size + " 条")
+                        part
+                    }
                 }
-                .getOrNull()
-                ?.app_update_response
-                .orEmpty()
-            // 逐批记录：以后再出现「拉不到更新」时，看日志就能定位是整体失败还是某一批失败
-            Log.i(TAG, "第 " + (index + 1) + "/" + ((apps.size + CHUNK_SIZE - 1) / CHUNK_SIZE) +
-                " 批返回 " + part.size + " 条")
-            collected += part
+            }.awaitAll().flatten().toMutableList()
         }
 
         val updates = collected

@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.timeout
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.flow.catch
 
 
 class UpdatesRepository(

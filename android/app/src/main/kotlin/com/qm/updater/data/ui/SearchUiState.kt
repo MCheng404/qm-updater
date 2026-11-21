@@ -1,16 +1,27 @@
 package com.qm.updater.data.ui
 
 
+/** Search result payload emitted by the repository while sources settle progressively. */
+data class SearchOutcome(
+    val updates: List<AppUpdate>,
+    val failedSources: Int = 0
+)
+
 sealed class SearchUiState {
 
     /** 尚未输入搜索词。与「搜了但没结果」是两种不同状态，UI 需要区分提示。 */
     data object Empty : SearchUiState()
 
-    data object Loading : SearchUiState()
+    data class Loading(val query: String = "") : SearchUiState()
 
-    data object Error : SearchUiState()
+    data class Error(val query: String = "", val message: String? = null) : SearchUiState()
 
-    data class Success(val updates: List<AppUpdate>) : SearchUiState()
+    data class Success(
+        val updates: List<AppUpdate>,
+        val query: String = "",
+        val elapsedMs: Long = 0L,
+        val failedSources: Int = 0
+    ) : SearchUiState()
 
     inline fun onEmpty(block: (Empty) -> Unit): SearchUiState {
         if (this is Empty) block(this)
@@ -34,6 +45,10 @@ sealed class SearchUiState {
 
     fun mutableUpdates(): MutableList<AppUpdate> =
         if (this is Success) updates.toMutableList() else mutableListOf()
+
+    /** Keep progress/install callbacks from turning Loading or Error into an empty Success. */
+    fun withUpdates(newUpdates: List<AppUpdate>): SearchUiState =
+        if (this is Success) copy(updates = newUpdates) else this
 
     fun updates(): List<AppUpdate> = if (this is Success) updates else emptyList()
 }

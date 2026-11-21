@@ -15,13 +15,11 @@ import com.qm.updater.util.SnackBar
 import com.qm.updater.util.Stringer
 import com.qm.updater.util.UpdatesNotification
 import com.qm.updater.prefs.Prefs
-import com.qm.updater.util.launchWithMutex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.sync.Mutex
-
+import kotlinx.coroutines.launch
 
 class SearchViewModel(
 	private val searchRepository: SearchRepository,
@@ -35,50 +33,81 @@ class SearchViewModel(
 	notification: UpdatesNotification
 ) : InstallViewModel(downloader, installer, prefs, snackBar, stringer, installLog, notification) {
 
-	private val mutex = Mutex()
+	companion object {
+		const val MIN_QUERY_LENGTH = 2
+	}
+
 	private val state = MutableStateFlow<SearchUiState>(SearchUiState.Empty)
 	private var job: Job? = null
+	private var lastQuery = ""
+	private var lastProgressAt = 0L
+	private var lastProgressValue = -1L
 
 	fun state(): StateFlow<SearchUiState> = state
 
-	/** 搜索词变化时取消上一次请求，避免旧结果覆盖新结果。 */
-	fun search(text: String) {
+	/** Single entry point: both debounce and IME submit go through here. */
+	fun search(raw: String) {
+		val text = raw.trim()
 		job?.cancel()
-		if (text.isBlank()) {
+		if (text.length < MIN_QUERY_LENGTH) {
+			lastQuery = ""
 			state.value = SearchUiState.Empty
 			badger.changeSearchBadge("")
 			return
 		}
-		job = viewModelScope.launchWithMutex(mutex, Dispatchers.IO) {
-			state.value = SearchUiState.Loading
-			badger.changeSearchBadge("")
-			searchRepository.search(text).collect {
-				it.onSuccess { apps ->
-					state.value = SearchUiState.Success(apps)
-					badger.changeSearchBadge(apps.size.toString())
-				}.onFailure {
+
+		lastQuery = text
+		val startedAt = System.currentTimeMillis()
+		state.value = SearchUiState.Loading(text)
+		badger.changeSearchBadge("")
+		job = viewModelScope.launch(Dispatchers.IO) {
+			searchRepository.search(text).collect { result ->
+				val elapsed = System.currentTimeMillis() - startedAt
+				result.onSuccess { outcome ->
+					state.value = SearchUiState.Success(
+						updates = outcome.updates,
+						query = text,
+						elapsedMs = elapsed,
+						failedSources = outcome.failedSources
+					)
+					badger.changeSearchBadge(outcome.updates.size.toString())
+				}.onFailure { error ->
 					badger.changeSearchBadge("!")
-					state.value = SearchUiState.Error
+					state.value = SearchUiState.Error(text, error.message)
 				}
 			}
 		}
 	}
 
+	fun retry() = search(lastQuery)
+
 	override fun onInstallingChanged(id: Int, installing: Boolean) {
-		state.value = SearchUiState.Success(
+		state.value = state.value.withUpdates(
 			state.value.mutableUpdates().setIsInstalling(id, installing)
 		)
 	}
 
 	override fun onInstallProgress(progress: AppInstallProgress) {
-		state.value = SearchUiState.Success(state.value.mutableUpdates().setProgress(progress))
+		// Match UpdatesViewModel: avoid recomposing the whole result list per data chunk.
+		val now = System.currentTimeMillis()
+		val total = state.value.updates().firstOrNull { it.id == progress.id }?.total ?: 0L
+		val value = progress.progress ?: 0L
+		val advancedEnough = total <= 0L ||
+			value - lastProgressValue > total / 100 ||
+			value >= total
+		if (now - lastProgressAt < 200L && !advancedEnough) return
+		lastProgressAt = now
+		lastProgressValue = value
+		state.value = state.value.withUpdates(state.value.mutableUpdates().setProgress(progress))
 	}
 
 	override fun onInstalled(id: Int) {
-		state.value = SearchUiState.Success(state.value.mutableUpdates().removeId(id))
+		state.value = state.value.withUpdates(state.value.mutableUpdates().removeId(id))
 	}
 
 	override fun onInstallFailed(id: Int) {
-		state.value = SearchUiState.Success(state.value.mutableUpdates().setIsInstalling(id, false))
+		state.value = state.value.withUpdates(
+			state.value.mutableUpdates().setIsInstalling(id, false)
+		)
 	}
 }

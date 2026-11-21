@@ -49,6 +49,9 @@ class InstallLog {
     fun emitStatus(newStatus: AppInstallStatus) {
         if (newStatus.id != 0) currentInstallId = newStatus.id
         status.tryEmit(newStatus)
+        // Status is a terminal event; keep cancelCurrentInstall() from firing
+        // again for an install that has already finished.
+        if (newStatus.id == currentInstallId) currentInstallId = 0
     }
 
     /** 由 SessionInstaller 在拉起确认界面时标记当前安装目标。 */

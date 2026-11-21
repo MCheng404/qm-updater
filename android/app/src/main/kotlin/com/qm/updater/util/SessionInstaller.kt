@@ -230,6 +230,9 @@ class SessionInstaller(
                 installLog.emitProgress(AppInstallProgress(id, written))
                 if (written == 0L) {
                     finishWith(false, "下载内容为空")
+                    installLog.emitStatus(
+                        AppInstallStatus(false, id, true, failureReason.get() ?: "下载内容为空")
+                    )
                     return false
                 }
 

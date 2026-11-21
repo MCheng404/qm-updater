@@ -175,13 +175,29 @@ object RootShell {
      */
     suspend fun exec(command: String): ExecResult = withContext(Dispatchers.IO) {
         runCatching {
-            val process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
-            val stdout = process.inputStream.bufferedReader().use(BufferedReader::readText)
-            val stderr = process.errorStream.bufferedReader().use(BufferedReader::readText)
-            // 与探测同理：命令若卡住（如 pm 异常挂起）最多等 60s，避免 IO 协程被挂死。
+            // Merge stderr into stdout and drain it on a separate thread. Reading the
+            // stream inline would block readText() until exit, so waitFor() with a
+            // timeout could never run on a hung root prompt.
+            val process = ProcessBuilder("su", "-c", command)
+                .redirectErrorStream(true)
+                .start()
+            var output = ""
+            val reader = Thread {
+                output = runCatching {
+                    process.inputStream.bufferedReader().use(BufferedReader::readText)
+                }.getOrDefault("")
+            }.apply { isDaemon = true }
+            reader.start()
+
             val finished = process.waitFor(EXEC_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            val code = if (finished) process.exitValue() else { process.destroy(); -1 }
-            ExecResult(finished && code == 0, code, stdout, stderr)
+            if (!finished) {
+                process.destroy()
+                reader.join(300)
+            } else {
+                reader.join(1000)
+            }
+            val code = if (finished) process.exitValue() else -1
+            ExecResult(finished && code == 0, code, output, "")
         }.getOrElse { e ->
             Log.e(TAG, "su -c 执行异常: ${command.take(80)}", e)
             ExecResult(false, -1, "", e.message ?: e.javaClass.simpleName)

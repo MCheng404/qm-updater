@@ -2426,7 +2426,7 @@ dependencies = [
 
 [[package]]
 name = "qm-updater"
-version = "2.1.0"
+version = "2.4.1"
 dependencies = [
  "encoding_rs",
  "serde",

@@ -21,5 +21,20 @@ import com.qm.updater.domain.AppGrouping
 /** 把平铺的更新列表归并成「一个应用一组」，每组内部按推荐度排序。 */
 fun List<AppUpdate>.groupByPackage(): List<List<AppUpdate>> = AppGrouping.group(this)
 
+/**
+ * Search results arrive already sorted by relevance. Keep that group order
+ * instead of re-sorting alphabetically, while still ordering candidates inside
+ * each group with the shared recommendation rule.
+ */
+fun List<AppUpdate>.groupByPackagePreservingOrder(): List<List<AppUpdate>> {
+    val groups = LinkedHashMap<String, MutableList<AppUpdate>>()
+    for (update in this) {
+        groups.getOrPut(update.packageName) { mutableListOf() }.add(update)
+    }
+    return groups.values.map { candidates ->
+        candidates.sortedWith(AppGrouping.CANDIDATE_ORDER)
+    }
+}
+
 /** 同一组内所有候选的共同信息（已安装版本 / 应用名）。 */
 fun List<AppUpdate>.installedVersion(): String = firstOrNull()?.oldVersion.orEmpty()

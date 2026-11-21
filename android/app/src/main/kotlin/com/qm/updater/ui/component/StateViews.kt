@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.qm.updater.R
+import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
@@ -97,8 +98,47 @@ fun EmptyState(
 }
 
 @Composable
-fun ErrorState(text: String = stringResource(R.string.something_went_wrong)) =
-    EmptyState(text)
+fun ErrorState(
+    text: String = stringResource(R.string.something_went_wrong),
+    detail: String? = null,
+    onRetry: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) = Box(
+    modifier.fillMaxSize(),
+    contentAlignment = Alignment.Center
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.padding(horizontal = 32.dp)
+    ) {
+        Icon(
+            imageVector = MiuixIcons.Help,
+            contentDescription = null,
+            tint = MiuixTheme.colorScheme.error,
+            modifier = Modifier.size(48.dp)
+        )
+        Text(
+            text = text,
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            textAlign = TextAlign.Center
+        )
+        if (detail != null) {
+            Text(
+                text = detail,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                textAlign = TextAlign.Center
+            )
+        }
+        if (onRetry != null) {
+            Button(onClick = onRetry) {
+                Text(stringResource(R.string.search_retry))
+            }
+        }
+    }
+}
 
 /** 首次加载时的居中指示器。 */
 @Composable

@@ -2,8 +2,8 @@ use crate::model::{Source, UpdateItem};
 use crate::tr;
 use crate::sources::{LogFn, UpdateSource};
 use crate::util::{
-    cmd_exists, compare_version, extract_json_object, par_map, run_capture_status,
-    run_capture_with_timeout, run_stream,
+    cmd_exists, compare_version, extract_json_object, npm_dist_tags, par_map,
+    run_capture_status, run_stream,
 };
 
 pub struct NpmSource;
@@ -255,37 +255,4 @@ fn npm_install(label: &str, log: LogFn, captured: &mut Vec<String>) -> bool {
         log("cmd", line.to_string());
     });
     matches!(code, Ok(0))
-}
-
-/// 一次调用拿到包的全部 dist-tag（形如 `{"latest":"1.2.3","beta":"1.3.0-beta.1"}`）。
-///
-/// 相比"每个 tag 一次 npm view"，N 个包的 npm 进程数从 2N 降到 N。
-/// 超时用 12 秒（默认 30），网络慢时也不至于拖住整个检查。
-/// 取不到时返回空表，调用方按"没有额外 tag"处理。
-fn npm_dist_tags(pkg: &str) -> Vec<(String, String)> {
-    let out = match run_capture_with_timeout("npm", &["view", pkg, "dist-tags", "--json"], 12) {
-        Ok(o) => o,
-        Err(_) => return Vec::new(),
-    };
-    let json = match extract_json_object(&out) {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(json) else {
-        return Vec::new();
-    };
-    let Some(obj) = value.as_object() else {
-        return Vec::new();
-    };
-
-    let mut tags: Vec<(String, String)> = Vec::new();
-    for (k, v) in obj {
-        // 只收形如版本号的字符串，避免把 npm 的报错文本当成版本
-        if let Some(s) = v.as_str() {
-            if s.chars().next().map(|c| c.is_ascii_digit()) == Some(true) {
-                tags.push((k.clone(), s.to_string()));
-            }
-        }
-    }
-    tags
 }

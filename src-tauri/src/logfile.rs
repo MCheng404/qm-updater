@@ -35,9 +35,6 @@ pub fn append(line: &LogLine) {
     let Some(path) = today_file() else {
         return;
     };
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
     // 先在内存里拼出完整的一整行，再一次性写入。
     //
     // 直接 `writeln!(f, "{} [{}] {}", ..)` 会被拆成**多次** write 系统调用
@@ -65,6 +62,9 @@ pub fn append(line: &LogLine) {
         None => true,
     };
     if needs_reopen {
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
         let f = match OpenOptions::new().create(true).append(true).open(&path) {
             Ok(f) => f,
             Err(_) => return,

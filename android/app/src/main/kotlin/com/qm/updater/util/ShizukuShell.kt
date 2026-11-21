@@ -60,20 +60,29 @@ object ShizukuShell {
         runCatching {
             // 第三参数 dir 传 "/"：Shizuku 以 shell 身份运行，工作目录给个一定存在的路径
             val process = Shizuku.newProcess(arrayOf("/system/bin/sh", "-c", command), null, "/")
-            var output = ""
-            // 与 RootShell 同样的坑：流必须在独立线程读，
-            // 否则进程迟迟不退出时 waitFor 的超时永远等不到执行。
-            val reader = Thread {
-                output = runCatching {
+            // Drain both streams on separate threads: pm install writes failures to
+            // stderr, and a full stderr pipe would stall the process until timeout.
+            var stdout = ""
+            var stderr = ""
+            val stdoutReader = Thread {
+                stdout = runCatching {
                     process.inputStream.bufferedReader().use { it.readText() }
                 }.getOrDefault("")
             }.apply { isDaemon = true }
-            reader.start()
+            val stderrReader = Thread {
+                stderr = runCatching {
+                    process.errorStream.bufferedReader().use { it.readText() }
+                }.getOrDefault("")
+            }.apply { isDaemon = true }
+            stdoutReader.start()
+            stderrReader.start()
 
             val finished = process.waitFor(EXEC_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
-            if (!finished) process.destroy() else reader.join(1000)
+            if (!finished) process.destroy()
+            stdoutReader.join(1000)
+            stderrReader.join(1000)
             val code = if (finished) runCatching { process.exitValue() }.getOrDefault(-1) else -1
-            ExecResult(code == 0, code, output.trim(), "")
+            ExecResult(code == 0, code, stdout.trim(), stderr.trim())
         }.getOrElse {
             Log.w(TAG, "Shizuku 执行命令失败。", it)
             ExecResult(false, -1, "", it.message ?: it.javaClass.simpleName)

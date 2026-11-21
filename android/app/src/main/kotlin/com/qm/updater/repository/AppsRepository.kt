@@ -78,8 +78,7 @@ class AppsRepository(
 	/** 安装来源（带记忆）。返回空串表示未知。 */
 	private fun installerOf(packageName: String): String =
 		installerCache.getOrPut(packageName) {
-			@Suppress("DEPRECATION")
-			runCatching { context.packageManager.getInstallerPackageName(packageName) }.getOrNull().orEmpty()
+			runCatching { getInstallerPackageName(packageName) }.getOrNull().orEmpty()
 		}
 
 	/**

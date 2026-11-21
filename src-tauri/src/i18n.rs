@@ -193,6 +193,11 @@ static TABLE: &[(&str, &str, &str)] = &[
         "Checking OpenClaw for updates...",
     ),
     ("openclaw.current", "当前版本：{}", "Current version: {}"),
+    (
+        "openclaw.checkFailed",
+        "OpenClaw 版本探测失败，已跳过检查",
+        "OpenClaw version probe failed; check skipped",
+    ),
     ("openclaw.stable", "正式版最新：{}", "Latest stable: {}"),
     ("openclaw.betaLatest", "beta 最新：{}", "Latest beta: {}"),
     (

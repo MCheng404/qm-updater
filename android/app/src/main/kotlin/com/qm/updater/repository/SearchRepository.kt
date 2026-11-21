@@ -2,7 +2,11 @@ package com.qm.updater.repository
 
 import android.util.Log
 import com.qm.updater.data.ui.AppUpdate
+import com.qm.updater.data.ui.SearchOutcome
+import com.qm.updater.domain.AppGrouping
 import com.qm.updater.prefs.Prefs
+import com.qm.updater.util.filterVersionTag
+import io.github.g00fy2.versioncompare.Version
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -10,13 +14,14 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.timeout
+import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * 跨源搜索。
+ * Cross-source search.
  *
- * 与 [UpdatesRepository] 同样的改造：把 `combine`（等所有源）换成
- * 并发 + 增量 emit（谁先回来谁先显示），并给每个源加硬超时。
+ * Sources emit progressively. Each source failure is isolated: partial results
+ * stay visible and the UI is told how many sources failed.
  */
 class SearchRepository(
     private val apkMirrorRepository: ApkMirrorRepository,
@@ -37,22 +42,29 @@ class SearchRepository(
 
     fun search(text: String) = flow {
         val sources = mutableListOf<Flow<Result<List<AppUpdate>>>>()
-        if (prefs.useApkMirror.get()) sources.add(apkMirrorRepository.search(text))
-        if (prefs.useFdroid.get()) sources.add(fdroidRepository.search(text))
-        if (prefs.useIzzy.get()) sources.add(izzyRepository.search(text))
-        if (prefs.useAptoide.get()) sources.add(aptoideRepository.search(text))
-        if (prefs.useGitHub.get()) sources.add(gitHubRepository.search(text))
-        if (prefs.useApkPure.get()) sources.add(apkPureRepository.search(text))
-        if (prefs.useGitLab.get()) sources.add(gitLabRepository.search(text))
-        if (prefs.usePlay.get()) sources.add(playRepository.search(text))
+        val sourceNames = mutableListOf<String>()
+
+        fun add(name: String, source: Flow<Result<List<AppUpdate>>>) {
+            sourceNames += name
+            sources += source
+        }
+
+        if (prefs.useApkMirror.get()) add("ApkMirror", apkMirrorRepository.search(text))
+        if (prefs.useFdroid.get()) add("F-Droid", fdroidRepository.search(text))
+        if (prefs.useIzzy.get()) add("IzzyOnDroid", izzyRepository.search(text))
+        if (prefs.useAptoide.get()) add("Aptoide", aptoideRepository.search(text))
+        if (prefs.useGitHub.get()) add("GitHub", gitHubRepository.search(text))
+        if (prefs.useApkPure.get()) add("APKPure", apkPureRepository.search(text))
+        if (prefs.useGitLab.get()) add("GitLab", gitLabRepository.search(text))
+        if (prefs.usePlay.get()) add("Play", playRepository.search(text))
 
         if (sources.isEmpty()) {
-            emit(Result.success(emptyList()))
+            emit(Result.success(SearchOutcome(emptyList())))
             return@flow
         }
 
         val slots = arrayOfNulls<List<AppUpdate>>(sources.size)
-        var firstError: Throwable? = null
+        val failedSources = mutableSetOf<String>()
 
         sources
             .mapIndexed { index, source ->
@@ -60,31 +72,47 @@ class SearchRepository(
             }
             .merge()
             .collect { (index, result) ->
-                result.onSuccess { slots[index] = it }
+                result
+                    .onSuccess { slots[index] = it }
                     .onFailure {
-                        if (firstError == null) firstError = it
                         slots[index] = emptyList()
+                        failedSources += sourceNames[index]
                     }
 
                 val merged = slots.filterNotNull().flatten()
-                    // **必须按包名去重**：同一个应用可能同时出现在多个来源里，
-                    // 而界面用 AppUpdate.id 作 LazyColumn 的 key，重复 key 会让 Compose 直接抛异常。
-                    // 这正是「结果非常多时才崩」的成因 —— 结果越多，撞上重复的概率越高。
-                    // 保留哪一个：版本号更高的那个（更可能是可安装的最新版）。
-                    .groupBy { it.packageName }
-                    .map { (_, same) -> same.maxByOrNull { it.versionCode } ?: same.first() }
-                    // 相关度排序：搜包名时，精确匹配必须排第一，否则用户要找的应用被埋在中间
-                    .sortedWith(
-                        compareByDescending<AppUpdate> { relevance(it, text) }
-                            .thenBy { it.name.lowercase() }
-                    )
+                    // Remove only identical candidates. Keep variants from
+                    // different sources so the UI can offer a source selector.
+                    .distinctBy { candidateKey(it) }
+                    .map { it to relevance(it, text) }
+                    // Preserve the relevance order of groups; the UI groups by
+                    // package without re-sorting alphabetically.
+                    .groupBy { it.first.packageName }
+                    .values
+                    .sortedByDescending { group -> group.maxOf { it.second } }
+                    .flatMap { group ->
+                        group
+                            .sortedWith(
+                                compareByDescending<Pair<AppUpdate, Int>> { it.second }
+                                    .thenComparator { a, b ->
+                                        AppGrouping.CANDIDATE_ORDER.compare(a.first, b.first)
+                                    }
+                                    .thenBy { it.first.name.lowercase(Locale.ROOT) }
+                            )
+                            .map { it.first }
+                    }
+
                 val settled = slots.all { it != null }
                 if (merged.isNotEmpty() || settled) {
-                    val error = firstError
-                    if (merged.isEmpty() && error != null) {
-                        emit(Result.failure(error))
+                    if (merged.isEmpty() && failedSources.isNotEmpty()) {
+                        emit(
+                            Result.failure(
+                                IllegalStateException(
+                                    "Search failed in: ${failedSources.joinToString(", ")}"
+                                )
+                            )
+                        )
                     } else {
-                        emit(Result.success(merged))
+                        emit(Result.success(SearchOutcome(merged, failedSources.size)))
                     }
                 }
             }
@@ -94,32 +122,54 @@ class SearchRepository(
     }
 }
 
+private fun candidateKey(update: AppUpdate): String =
+    listOf(
+        update.source.name,
+        update.packageName,
+        update.versionCode.toString(),
+        update.version,
+        update.link.toString()
+    ).joinToString("|")
+
 private fun Flow<Result<List<AppUpdate>>>.withDeadline(millis: Long) = this
     .timeout(millis.milliseconds)
     .catch { t ->
-        if (t !is TimeoutCancellationException) Log.e("SearchRepository", "源异常，已跳过。", t)
-        emit(Result.success(emptyList()))
+        if (t !is TimeoutCancellationException) {
+            Log.e("SearchRepository", "源异常，已跳过。", t)
+        }
+        emit(Result.failure(t))
     }
 
 /**
- * 搜索结果的相关度（越大越靠前）。
- *
- * 排序依据是「用户输入与结果的对应强度」，而不是来源顺序或名称字母序：
- * 搜 `com.tencent.mm` 时精确命中包名的结果必须排在最前，
- * 搜 `wechat` 时名称完全相等也要排在名称只是「包含」的结果之前。
+ * Relevance score: exact field matches dominate; source trust and version
+ * only break near-ties. Multi-word queries are scored token by token.
  */
 private fun relevance(update: AppUpdate, query: String): Int {
-    val q = query.trim().lowercase()
+    val q = query.trim().lowercase(Locale.ROOT)
     if (q.isEmpty()) return 0
-    val pkg = update.packageName.lowercase()
-    val name = update.name.lowercase()
-    return when {
-        pkg == q -> 100          // 搜的正是这个包
-        name.equals(q, true) -> 90
-        pkg.startsWith(q) -> 80
-        name.startsWith(q) -> 70
-        pkg.contains(q) -> 60
-        name.contains(q) -> 50
-        else -> 0                 // 命中不了，排在所有有关联结果之后
+
+    val fields = listOf(
+        update.packageName.lowercase(Locale.ROOT),
+        update.name.lowercase(Locale.ROOT)
+    )
+    val tokens = q.split(Regex("\\s+")).filter { it.isNotBlank() }
+    val scores = tokens.mapNotNull { token ->
+        fields.maxOf { fieldScore(it, token) }.takeIf { it > 0 }
     }
+    if (scores.isEmpty()) return 0
+    val base = scores.sum() / scores.size
+
+    val priority = AppGrouping.priorityOf(update.source.name)
+    val sourceBonus = if (priority == Int.MAX_VALUE) 0 else 5 - priority.coerceAtMost(5)
+    val versionBonus = if (runCatching { Version(filterVersionTag(update.version)) }.getOrNull() != null) 2 else 0
+    return base + sourceBonus + versionBonus
+}
+
+private fun fieldScore(field: String, token: String): Int = when {
+    field == token -> 100
+    field.startsWith("$token ") -> 85
+    field.startsWith(token) -> 75
+    field.contains(" $token") || field.contains("$token ") -> 65
+    field.contains(token) -> 50
+    else -> 0
 }

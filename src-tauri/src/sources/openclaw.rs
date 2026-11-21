@@ -2,7 +2,7 @@ use crate::model::{Source, UpdateItem};
 use crate::tr;
 use crate::sources::{LogFn, UpdateSource};
 use crate::util::{
-    cmd_exists, compare_version, extract_json_object, is_admin, run_capture_with_timeout, run_stream,
+    cmd_exists, compare_version, is_admin, npm_dist_tags, run_capture_with_timeout, run_stream,
 };
 
 pub struct OpenclawSource;
@@ -20,8 +20,18 @@ impl UpdateSource for OpenclawSource {
         // 注意：check_one 已调用 source.available()，这里不需要重复检查
         log("info", tr!("openclaw.checking"));
 
-        let raw = run_capture_with_timeout("openclaw", &["--version"], 15).unwrap_or_default();
+        let raw = match run_capture_with_timeout("openclaw", &["--version"], 15) {
+            Ok(raw) => raw,
+            Err(_) => {
+                log("err", tr!("openclaw.checkFailed"));
+                return vec![];
+            }
+        };
         let current = extract_version(&raw);
+        if !current.chars().any(|c| c.is_ascii_digit()) {
+            log("err", tr!("openclaw.noVersion"));
+            return vec![];
+        }
         log("cmd", tr!("openclaw.current", current));
 
         // 探测"装的位置"与"用的位置"是否一致。
@@ -193,35 +203,6 @@ impl UpdateSource for OpenclawSource {
             }
         }
     }
-}
-
-/// 一次调用拿到包的全部 dist-tag（latest / beta / dev …）。
-///
-/// 原来 latest 和 beta 各发一次 `npm view`，现在合并成一次，
-/// 少起一个 npm 进程（约省 1–2 秒）。超时 12 秒。
-fn npm_dist_tags(pkg: &str) -> Vec<(String, String)> {
-    let out = match run_capture_with_timeout("npm", &["view", pkg, "dist-tags", "--json"], 12) {
-        Ok(o) => o,
-        Err(_) => return Vec::new(),
-    };
-    let json = match extract_json_object(&out) {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(json) else {
-        return Vec::new();
-    };
-    let Some(obj) = value.as_object() else {
-        return Vec::new();
-    };
-
-    let mut tags: Vec<(String, String)> = Vec::new();
-    for (k, v) in obj {
-        if let Some(s) = v.as_str() {
-            tags.push((k.clone(), s.to_string()));
-        }
-    }
-    tags
 }
 
 /// 从 `openclaw --version` 输出里提取版本号（优先四位年份版本，如 2026.9.3）

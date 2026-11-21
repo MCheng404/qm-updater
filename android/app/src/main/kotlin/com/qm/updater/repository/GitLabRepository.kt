@@ -55,22 +55,29 @@ class GitLabRepository(
         extra: Regex?
     ) = flow {
         val releases = service.getReleases(user, repo)
-            .filter { Version(filterVersionTag(it.tag_name)) > Version(currentVersion) }
+        // The API returns releases by creation time; compare versions explicitly.
+        val latest = releases.maxByOrNull {
+            runCatching { Version(filterVersionTag(it.tag_name)) }.getOrDefault(Version("0"))
+        }
+        val newer = latest != null &&
+            runCatching { Version(filterVersionTag(latest.tag_name)) > Version(currentVersion) }
+                .getOrDefault(false)
 
-        if (releases.isNotEmpty()) {
+        val apkUrl = latest?.let { getApkUrl(packageName, it) }.orEmpty()
+        if (latest != null && newer && apkUrl.isNotBlank()) {
             val app = apps?.getApp(packageName)
             emit(listOf(
                 AppUpdate(
                 name = repo,
                 packageName = packageName,
-                version = releases[0].tag_name,
+                version = latest.tag_name,
                 oldVersion = app?.version ?: "?",
                 versionCode = 0L,
                 oldVersionCode = app?.versionCode ?: 0L,
                 source = GitLabSource,
-                link = Link.Url(getApkUrl(packageName, releases[0])),
-                whatsNew = releases[0].description,
-                iconUri = if (apps == null) releases[0].author.avatar_url.toUri() else Uri.EMPTY
+                link = Link.Url(apkUrl),
+                whatsNew = latest.description,
+                iconUri = if (apps == null) latest.author.avatar_url.toUri() else Uri.EMPTY
             )))
         } else {
             emit(emptyList())

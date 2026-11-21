@@ -21,9 +21,11 @@ import com.qm.updater.service.ApkMirrorService
 import com.qm.updater.util.combine
 import com.qm.updater.util.isAndroidTv
 import com.qm.updater.util.orFalse
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import org.jsoup.Jsoup
 
 
@@ -87,35 +89,46 @@ class ApkMirrorRepository(
             .map { appExists(it.getPackageNames()) }
             .combine { all -> emit(parseUpdates(all.flatMap { it }, apps)) }
             .collect()
+    }.catch {
+        emit(emptyList())
+        Log.e(TAG, "Error getting updates.", it)
     }
 
     suspend fun search(text: String) = flow {
         val baseUrl = "https://www.apkmirror.com"
         val searchQuery = "/?post_type=app_release&searchtype=app&s="
         val doc = Jsoup.connect("$baseUrl$searchQuery$text").get()
-        val row = doc.select("div.appRow")
-        val a = row.select("a.byDeveloper")
-        val h5 = row.select("h5.appRowTitle").take(a.size)
-        val img = row.select("img")
-        a.removeAt(0)
-        img.removeAt(0)
-        val result = (0 until a.size).map {
+        // Extract each row independently. Earlier collections were indexed after
+        // removing headers from only two of them, so name/icon/package came
+        // from different apps.
+        val result = doc.select("div.appRow").mapNotNull { row ->
+            val title = row.selectFirst("h5.appRowTitle") ?: return@mapNotNull null
+            val href = title.selectFirst("a")?.attr("href").orEmpty()
+            if (href.isBlank()) return@mapNotNull null
+            val url = if (href.startsWith("http", true)) href else "$baseUrl$href"
+            val path = url.removePrefix(baseUrl).substringBefore('?').trim('/')
+            val slug = path.split('/').getOrNull(2).orEmpty()
+            val developer = row.selectFirst("a.byDeveloper")?.text().orEmpty()
+            val packageName = slug.ifBlank { developer }
+            if (packageName.isBlank()) return@mapNotNull null
+            val iconSrc = row.selectFirst("img")?.attr("src").orEmpty()
+            val icon = if (iconSrc.startsWith("http", true)) iconSrc else "$baseUrl$iconSrc"
             AppUpdate(
-                name = h5[it].attr("title"),
-                link = Link.Url("$baseUrl${h5[it].selectFirst("a")?.attr("href")}"),
-                iconUri = "$baseUrl${img[it].attr("src")}".replace("=32", "=128").toUri(),
+                name = title.attr("title").ifBlank { title.text() },
+                link = Link.Url(url),
+                iconUri = icon.replace("=32", "=128").toUri(),
                 version = "?",
                 oldVersion = "?",
                 versionCode = 0L,
                 oldVersionCode = 0L,
                 source = ApkMirrorSource,
-                packageName = a[it].text() // Developer name in this case
+                packageName = packageName
             )
         }
         emit(Result.success(result))
-    }.catch {
+    }.flowOn(Dispatchers.IO).catch {
         emit(Result.failure(it))
-        Log.e("ApkMirrorRepository", "Error searching.", it)
+        Log.e(TAG, "Error searching.", it)
     }
 
     private fun appExists(apps: List<String>) = flow {
@@ -151,7 +164,7 @@ class ApkMirrorRepository(
                             " link=" + it.link
                     )
                 }
-                ?.toAppUpdate(apps.getApp(data.pname)!!, data.release)
+                ?.let { apk -> apps.getApp(data.pname)?.let { app -> apk.toAppUpdate(app, data.release) } }
         }
 
     private fun filterSignature(apk: AppExistsResponseApk, signature: String?) = when {

@@ -278,26 +278,47 @@ pub fn is_admin() -> bool {
         }
     }
 
-    // 慢速路径：检测并缓存
-    let result = detect_admin();
+    // Slow path: detect once, rechecking under the write lock to avoid
+    // concurrent `net session` launches from simultaneous first callers.
     if let Ok(mut guard) = ADMIN_CACHE.write() {
+        if let Some(cached) = *guard {
+            return cached;
+        }
+        let result = detect_admin();
         *guard = Some(result);
+        return result;
     }
-    result
+    detect_admin()
 }
 
 fn detect_admin() -> bool {
-    let (tx, rx) = mpsc::channel::<bool>();
-    std::thread::spawn(move || {
-        let mut cmd = Command::new("net");
-        cmd.arg("session").stdout(Stdio::null()).stderr(Stdio::null());
-        #[cfg(windows)]
-        cmd.creation_flags(CREATE_NO_WINDOW);
-        let result = cmd.status().map(|s| s.success()).unwrap_or(false);
-        let _ = tx.send(result);
-    });
-    rx.recv_timeout(Duration::from_secs(5))
-        .unwrap_or(false)
+    let mut cmd = Command::new("net");
+    cmd.arg("session").stdout(Stdio::null()).stderr(Stdio::null());
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let Ok(mut child) = cmd.spawn() else {
+        return false;
+    };
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return status.success(),
+            Ok(None) => {
+                if std::time::Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return false;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return false;
+            }
+        }
+    }
 }
 
 /// 本地时间的各字段（日志时间戳与按天分文件的日期都从这里取）。
@@ -511,6 +532,35 @@ where
         }
     }
     result
+}
+
+/// Fetch all npm dist-tags for a package in one `npm view` call.
+/// Non-version values are dropped; an empty vector means lookup failed.
+pub fn npm_dist_tags(pkg: &str) -> Vec<(String, String)> {
+    let out = match run_capture_with_timeout("npm", &["view", pkg, "dist-tags", "--json"], 12) {
+        Ok(o) => o,
+        Err(_) => return Vec::new(),
+    };
+    let Some(json) = extract_json_object(&out) else {
+        return Vec::new();
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(json) else {
+        return Vec::new();
+    };
+    let Some(obj) = value.as_object() else {
+        return Vec::new();
+    };
+
+    obj.iter()
+        .filter_map(|(tag, value)| {
+            let version = value.as_str()?;
+            if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+                Some((tag.clone(), version.to_string()))
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 /// 当前 PATH 上 node 的版本号（去掉前缀 v），没装返回 None。

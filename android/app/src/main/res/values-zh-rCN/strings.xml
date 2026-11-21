@@ -266,4 +266,9 @@
     <string name="install_done">安装完成</string>
     <string name="install_failure_named">%1$s 安装失败</string>
     <string name="install_failed">安装失败</string>
+    <string name="search_result_meta">找到 %1$d 个结果 · 耗时 %2$.1f 秒</string>
+    <string name="search_searching">正在搜索“%1$s”…</string>
+    <string name="search_retry">重试</string>
+    <string name="search_partial_error">有 %1$d 个来源未返回，结果可能不完整</string>
+    <string name="search_no_results_detail">“%1$s” 在已启用的来源中没有匹配项</string>
 </resources>

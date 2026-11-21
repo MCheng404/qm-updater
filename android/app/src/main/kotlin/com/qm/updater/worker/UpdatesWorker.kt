@@ -36,10 +36,12 @@ class UpdatesWorker(
             workManager.enqueueUniquePeriodicWork(TAG, ExistingPeriodicWorkPolicy.UPDATE, request)
         }
 
+        // WorkManager treats a negative initial delay as "run now", which defeats
+        // the intended jitter. Keep every offset non-negative.
         private fun randomDelay() = if (prefs.useApkMirror.get())
             Random.nextLong(0, 59 * 60 * 1_000)
         else
-            Random.nextLong(-5 * 60 * 1_000, 5 * 60 * 1_000)
+            Random.nextLong(0, 10 * 60 * 1_000)
 
         private fun getDays() = when(prefs.alarmFrequency.get()) {
             0 -> 1L

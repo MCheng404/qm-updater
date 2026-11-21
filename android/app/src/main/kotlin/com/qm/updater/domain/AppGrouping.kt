@@ -42,7 +42,7 @@ object AppGrouping {
         "ApkMirror"
     )
 
-    private fun priorityOf(sourceName: String): Int =
+    fun priorityOf(sourceName: String): Int =
         SOURCE_PRIORITY.indexOf(sourceName).let { if (it < 0) Int.MAX_VALUE else it }
 
     /**
