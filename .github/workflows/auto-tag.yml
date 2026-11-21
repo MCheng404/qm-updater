@@ -8,7 +8,7 @@ name: Auto Tag
 # ⚠️ 两处关键约束：
 #   - GITHUB_TOKEN 推送的 tag 不触发 on:push workflow（GitHub 防递归），必须显式
 #     dispatch —— workflow_dispatch 是 GITHUB_TOKEN 可触发的例外事件
-#   - dispatch 的 ref 必须用分支名（refactor/vue-frontend）：裸 tag 名会被 gh 解析成
+#   - dispatch 的 ref 必须是分支名（取 github.ref_name）：裸 tag 名会被 gh 解析成
 #     refs/heads/<tag>（不存在）→ HTTP 422 "does not have workflow_dispatch"
 on:
   push:
@@ -28,6 +28,7 @@ permissions:
 jobs:
   auto-tag:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,14 +68,13 @@ jobs:
         if: steps.chk.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
         run: |
-          gh workflow run release.yml -f "tag=v${{ steps.ver.outputs.version }}" -r "refactor/vue-frontend"
+          gh workflow run release.yml -f "tag=v${{ steps.ver.outputs.version }}" -r "$BRANCH"
 
       # ===== 测试版：版本未 bump，打 vX.Y.Z-build.<run_number> 并触发测试构建发布 =====
       - name: Create and push test tag
         if: steps.chk.outputs.exists == 'true'
-        env:
-          RUN_NO: ${{ github.run_number }}
         run: |
           ttag="v${{ steps.ver.outputs.version }}-build.${{ github.run_number }}"
           git config user.name "github-actions[bot]"
@@ -87,5 +87,6 @@ jobs:
         if: steps.chk.outputs.exists == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
         run: |
-          gh workflow run test-build.yml -f "tag=v${{ steps.ver.outputs.version }}-build.${{ github.run_number }}" -r "refactor/vue-frontend"
+          gh workflow run test-build.yml -f "tag=v${{ steps.ver.outputs.version }}-build.${{ github.run_number }}" -r "$BRANCH"

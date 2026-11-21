@@ -4,7 +4,7 @@ name: Test Build
 # dispatch 触发。版本号动态获取：v<正式版本>-build.<CI 编号>（如 v2.1.0-build.87），
 # 安卓 versionName=正式版本-build.编号、versionCode=CI 编号（run 号单调递增，保证
 # 每次测试构建都被视为新版本）；桌面端由 --config 覆盖 package.version。
-# 仅构建 x64 桌面便携包 + 安卓 release APK，不签名、不发正式 Release。
+# 仅构建 x64 桌面便携包 + 安卓 release APK，发布为 prerelease（有密钥则签名）。
 on:
   workflow_dispatch:
     inputs:
@@ -26,6 +26,7 @@ env:
 jobs:
   desktop:
     runs-on: windows-latest
+    timeout-minutes: 45
     outputs:
       tag: ${{ steps.rel.outputs.tag }}
       version: ${{ steps.rel.outputs.version }}
@@ -57,9 +58,11 @@ jobs:
 
       - name: Resolve test version
         id: rel
+        env:
+          IN_TAG: ${{ github.event.inputs.tag }}
         run: |
-          $tag = "${{ github.event.inputs.tag }}"
-          if ($tag -notmatch '^v\d') { throw "需要一个形如 vX.Y.Z-build.N 的测试版 tag，当前为 '$tag'" }
+          $tag = $env:IN_TAG
+          if ($tag -notmatch '^v\d.*-build\.\d+$') { throw "需要一个形如 vX.Y.Z-build.N 的测试版 tag，当前为 '$tag'" }
           $v = $tag -replace '^v',''
           "tag=$tag"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
@@ -97,6 +100,7 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
       tag: ${{ steps.rel.outputs.tag }}
       version: ${{ steps.rel.outputs.version }}
@@ -112,12 +116,18 @@ jobs:
         with:
           distribution: zulu
           java-version: '17'
+          cache: gradle
 
       - name: Resolve test version
         id: rel
+        env:
+          IN_TAG: ${{ github.event.inputs.tag }}
         run: |
-          tag="${{ github.event.inputs.tag }}"
-          case "$tag" in v[0-9]*) ;; *) echo "需要一个形如 vX.Y.Z-build.N 的测试版 tag，当前为 '$tag'" >&2; exit 1;; esac
+          tag="$IN_TAG"
+          case "$tag" in
+            v[0-9]*.[0-9]*.[0-9]*-build.[0-9]*) ;;
+            *) echo "需要一个形如 vX.Y.Z-build.N 的测试版 tag，当前为 '$tag'" >&2; exit 1;;
+          esac
           v="${tag#v}"
           echo "tag=$tag"   >> "$GITHUB_OUTPUT"
           echo "version=$v" >> "$GITHUB_OUTPUT"
@@ -141,7 +151,7 @@ jobs:
           echo "BUILD_NUMBER=$num" >> "$GITHUB_ENV"
           echo "versionName=$v, versionCode=$num (CI 编号)"
           cd android
-          ./gradlew :app:assembleRelease
+          bash ./gradlew :app:assembleRelease
 
       - name: Collect Android artifact
         run: |
@@ -162,11 +172,13 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [desktop, android]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.desktop.outputs.tag }}
           fetch-depth: 0
 
       - name: Download desktop artifacts

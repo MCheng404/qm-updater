@@ -3,7 +3,7 @@ name: Release
 # 推一个 vX.Y.Z 的 tag 即触发：云端并行构建双端产物并发布到同一个 GitHub Release：
 #   - Windows 桌面：x64 + ARM64 的「安装包 + 便携包」、（可选）Authenticode 签名
 #   - Android：同仓库 android/ 子目录（Kotlin+Compose，monorepo 合并）
-#     release APK；签名读取本仓库 secrets KEYSTORE / PROPERTIES（缺失回落 debug 签名）
+#     release APK；签名读取本仓库 secrets KEYSTORE / PROPERTIES（缺失则输出 unsigned APK）
 # 双端版本号同源：tag → versionName=X.Y.Z（桌面同步 package.json/Cargo.toml/tauri.conf.json/
 # AboutView 4 处；安卓由 BUILD_VERSION 注入），versionCode 由 tag 派生（X*10000+Y*100+Z）。
 # 也可在 Actions 页面手动 `workflow_dispatch` 触发（tag 必填）。
@@ -11,6 +11,8 @@ on:
   push:
     tags:
       - 'v*'
+      # Test tags produced by auto-tag.yml must never enter the stable release path.
+      - '!v*-build.*'
   workflow_dispatch:
     inputs:
       tag:
@@ -32,6 +34,7 @@ jobs:
   # ================= Windows 桌面构建 =================
   desktop:
     runs-on: windows-latest
+    timeout-minutes: 75
     outputs:
       tag: ${{ steps.rel.outputs.tag }}
       version: ${{ steps.rel.outputs.version }}
@@ -77,12 +80,17 @@ jobs:
         shell: pwsh
         env:
           # 用 github.event.inputs 而非 inputs 上下文：前者在任何事件下都可用，
-          # push 触发时解析为空字符串，走 ref_name 分支（避免又踩上下文可用性的坑）
+          # push 触发时解析为空字符串，走 REF_NAME 分支（避免又踩上下文可用性的坑）。
+          # 两个值都经 env 注入，避免把上下文直接拼进脚本。
           IN_TAG: ${{ github.event.inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          $tag = if ($env:IN_TAG) { $env:IN_TAG } else { "${{ github.ref_name }}" }
+          $tag = if ($env:IN_TAG) { $env:IN_TAG } else { $env:REF_NAME }
           if ($tag -notmatch '^v\d') {
             throw "需要一个形如 vX.Y.Z 的 tag，当前解析为 '$tag'。手动触发请在输入框填写 tag。"
+          }
+          if ($tag -match '-build\.') {
+            throw "测试版 tag 不能进入正式发布流程: $tag"
           }
           $v = $tag -replace '^v',''
           "tag=$tag"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
@@ -113,25 +121,26 @@ jobs:
           $bytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\qm.pfx", $bytes)
 
-      - name: Sign portable binaries
-        if: env.WINDOWS_CERTIFICATE != ''
-        run: |
-          $st = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.Component.MSBuild -find "**\signtool.exe" | Select-Object -First 1
-          & $st sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f "$env:RUNNER_TEMP\qm.pfx" /p $env:WINDOWS_CERTIFICATE_PASSWORD src-tauri/target/release/qm-updater.exe src-tauri/target/aarch64-pc-windows-msvc/release/qm-updater.exe
-
       - name: Build x64 installer
         run: npm run tauri -- build --config '{"build":{"beforeBuildCommand":null}}'
 
       - name: Build ARM64 installer
         run: npm run tauri -- build --target aarch64-pc-windows-msvc --config '{"build":{"beforeBuildCommand":null}}'
 
-      - name: Sign installers
+      # Sign after ALL builds: the installer build can overwrite the portable
+      # executable, so signing earlier would leave an unsigned release asset.
+      - name: Sign binaries and installers
         if: env.WINDOWS_CERTIFICATE != ''
         run: |
           $st = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.Component.MSBuild -find "**\signtool.exe" | Select-Object -First 1
-          $installers = Get-ChildItem src-tauri/target -Recurse -Filter *-setup.exe
-          foreach ($i in $installers) {
-            & $st sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f "$env:RUNNER_TEMP\qm.pfx" /p $env:WINDOWS_CERTIFICATE_PASSWORD $i.FullName
+          if (-not $st) { throw "signtool.exe not found" }
+          $files = @()
+          $files += 'src-tauri/target/release/qm-updater.exe'
+          $files += 'src-tauri/target/aarch64-pc-windows-msvc/release/qm-updater.exe'
+          Get-ChildItem src-tauri/target -Recurse -Filter *-setup.exe | ForEach-Object { $files += $_.FullName }
+          foreach ($f in $files) {
+            if (-not (Test-Path $f)) { throw "签名目标不存在: $f" }
+            & $st sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f "$env:RUNNER_TEMP\qm.pfx" /p $env:WINDOWS_CERTIFICATE_PASSWORD $f
           }
 
       # 便携包改名，与发布资产命名一致（qm-updater-x64.exe / -arm64.exe）
@@ -201,12 +210,13 @@ jobs:
   # ================= Android 构建（本仓库 android/ 子目录，Kotlin+Compose） =================
   # 与桌面端同 tag（vX.Y.Z）、同一 Release：versionName 由 tag 注入（BUILD_VERSION=X.Y.Z），
   # versionCode 由 tag 派生（X*10000+Y*100+Z），双端版本号同源。
-  # 签名：读取 qm-updater 仓库 secrets KEYSTORE / PROPERTIES（与安卓端仓库同名，内容格式一致：
+  # 签名：读取本仓库 secrets KEYSTORE / PROPERTIES（内容格式一致：
   #   KEYSTORE   → app/ci.ks（release 用 keystore，base64）
   #   PROPERTIES → local.properties（含 keystore.file/password/keyalias/keypassword，base64）
-  # 未配置时回落 debug 签名（可安装测试）。
+  # 未配置时输出 unsigned APK（本地仍需手动签名才能安装）。
   android:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
       tag: ${{ steps.rel.outputs.tag }}
       version: ${{ steps.rel.outputs.version }}
@@ -222,14 +232,20 @@ jobs:
         with:
           distribution: zulu
           java-version: '17'
+          cache: gradle
 
       - name: Resolve release tag
         id: rel
         env:
           IN_TAG: ${{ github.event.inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ -n "$IN_TAG" ]; then tag="$IN_TAG"; else tag="${{ github.ref_name }}"; fi
-          case "$tag" in v[0-9]*) ;; *) echo "需要一个形如 vX.Y.Z 的 tag，当前解析为 '$tag'。" >&2; exit 1;; esac
+          if [ -n "$IN_TAG" ]; then tag="$IN_TAG"; else tag="$REF_NAME"; fi
+          case "$tag" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "需要一个形如 vX.Y.Z 的 tag，当前解析为 '$tag'。" >&2; exit 1;;
+          esac
+          case "$tag" in *-build.*) echo "测试版 tag 不能进入正式发布流程: $tag" >&2; exit 1;; esac
           v="${tag#v}"
           echo "tag=$tag"   >> "$GITHUB_OUTPUT"
           echo "version=$v" >> "$GITHUB_OUTPUT"
@@ -247,7 +263,7 @@ jobs:
       - name: Build Android APK (release)
         env:
           BUILD_VERSION: ${{ steps.rel.outputs.version }}   # versionName = 桌面 tag 版本，双端同号
-          BUILD_TAG: ""                                      # 正式包：applicationId=com.onekey.updater
+          BUILD_TAG: ""                                      # 正式包：applicationId=com.qm.updater
         run: |
           # versionCode：vX.Y.Z → X*10000 + Y*100 + Z（2.4.0 → 20400）
           v="${{ steps.rel.outputs.version }}"
@@ -256,7 +272,7 @@ jobs:
           echo "BUILD_NUMBER=$vc" >> "$GITHUB_ENV"
           echo "versionName=$v, versionCode=$vc"
           cd android
-          ./gradlew :app:assembleRelease
+          bash ./gradlew :app:assembleRelease
 
       - name: Collect Android artifacts
         run: |
@@ -279,11 +295,13 @@ jobs:
   # ================= 合并双端产物并发布 =================
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [desktop, android]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.desktop.outputs.tag }}
           fetch-depth: 0       # 更新日志需要完整历史
 
       - name: Download desktop artifacts
