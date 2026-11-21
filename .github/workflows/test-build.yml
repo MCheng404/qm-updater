@@ -107,6 +107,8 @@ jobs:
     env:
       KEYSTORE: ${{ secrets.KEYSTORE }}
       PROPERTIES: ${{ secrets.PROPERTIES }}
+      # Skip the Aliyun mirrors in settings.gradle.kts; their 502s are fatal to Gradle.
+      QM_OFFICIAL_REPOS_ONLY: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
